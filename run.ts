@@ -78,25 +78,53 @@ async function runInstall(): Promise<void> {
   }
   log(c('green', '  ✓ python'))
 
-  // 1. GLM-Free-API: copy pre-built Windows binary
+  // 1. GLM-Free-API: link/copy pre-built binary (platform-specific)
   log(c('blue', '\n=== 1/4 GLM-Free-API (Z.ai) — pre-built binary ==='))
   const glmDir = join(ROOT, 'vendor', 'glm-free-api')
-  const glmBin = join(glmDir, 'zai-api.exe')
-  const platformBin = join(glmDir, 'zai-api-windows-amd64.exe')
+  const glmExt = IS_WIN ? '.exe' : ''
+  const glmBin = join(glmDir, `zai-api${glmExt}`)
+  const platformSuffix = IS_WIN ? 'windows-amd64' : `${process.platform}-${process.arch}`
+  const platformBin = join(glmDir, `zai-api-${platformSuffix}${glmExt}`)
   if (existsSync(glmBin)) {
-    log(c('green', '  ✓ already copied'))
+    log(c('green', '  ✓ already linked'))
   } else if (existsSync(platformBin)) {
-    copyFileSync(platformBin, glmBin)
-    log(c('green', '  ✓ copied zai-api.exe'))
+    if (IS_WIN) {
+      copyFileSync(platformBin, glmBin)
+    } else {
+      // On Unix, try symlink first (cleaner), fall back to copy
+      try {
+        const { symlinkSync } = require('node:fs')
+        symlinkSync(`zai-api-${platformSuffix}`, glmBin)
+      } catch {
+        copyFileSync(platformBin, glmBin)
+      }
+    }
+    log(c('green', `  ✓ linked zai-api${glmExt} → zai-api-${platformSuffix}${glmExt}`))
   } else {
-    log(c('red', '  ✗ no pre-built binary found'))
+    // Try to find any platform binary
+    const { readdirSync } = require('node:fs')
+    const candidates = readdirSync(glmDir).filter((f: string) => f.startsWith('zai-api-') && !f.endsWith('.exe') === IS_WIN)
+    if (candidates.length > 0) {
+      if (IS_WIN) {
+        copyFileSync(join(glmDir, candidates[0]), glmBin)
+      } else {
+        try { symlinkSync(candidates[0], glmBin) } catch { copyFileSync(join(glmDir, candidates[0]), glmBin) }
+      }
+      log(c('yellow', `  ⚠ linked ${candidates[0]} (platform mismatch)`))
+    } else {
+      log(c('red', '  ✗ no pre-built binary found'))
+    }
   }
   // Captcha collector
-  const captchaBin = join(glmDir, 'captcha-collector.exe')
-  const captchaPlatform = join(glmDir, 'captcha-collector-windows-amd64.exe')
+  const captchaBin = join(glmDir, `captcha-collector${glmExt}`)
+  const captchaPlatform = join(glmDir, `captcha-collector-${platformSuffix}${glmExt}`)
   if (!existsSync(captchaBin) && existsSync(captchaPlatform)) {
-    copyFileSync(captchaPlatform, captchaBin)
-    log(c('green', '  ✓ copied captcha-collector.exe'))
+    if (IS_WIN) {
+      copyFileSync(captchaPlatform, captchaBin)
+    } else {
+      try { symlinkSync(`captcha-collector-${platformSuffix}`, captchaBin) } catch { copyFileSync(captchaPlatform, captchaBin) }
+    }
+    log(c('green', `  ✓ linked captcha-collector${glmExt}`))
   }
   // Empty tokens.sqlite so GLM boots in guest mode
   const tokensDb = join(glmDir, 'tokens.sqlite')
@@ -108,8 +136,11 @@ async function runInstall(): Promise<void> {
   // 2. DeepSeek-API: Python venv + deps
   log(c('blue', '\n=== 2/4 DeepSeek-API — Python venv ==='))
   const dsDir = join(ROOT, 'vendor', 'deepseek-api')
-  const venvPython = join(dsDir, '.venv', 'Scripts', 'python.exe')
-  const venvPip = join(dsDir, '.venv', 'Scripts', 'pip.exe')
+  const venvScripts = IS_WIN ? 'Scripts' : 'bin'
+  const venvPythonExt = IS_WIN ? 'python.exe' : 'python'
+  const venvPipExt = IS_WIN ? 'pip.exe' : 'pip'
+  const venvPython = join(dsDir, '.venv', venvScripts, venvPythonExt)
+  const venvPip = join(dsDir, '.venv', venvScripts, venvPipExt)
   if (!existsSync(venvPython)) {
     log(c('yellow', '  → creating venv...'))
     const pythonCmd = commandExists('python') ? 'python' : 'python3'
@@ -140,7 +171,9 @@ async function runInstall(): Promise<void> {
   }
   // Verify Playwright Chromium browser is installed for the Python venv
   // (separate from Node's Playwright — they don't share browser binaries).
-  const pwBrowserPath = join(process.env.USERPROFILE || '', 'AppData', 'Local', 'ms-playwright')
+  const pwBrowserPath = IS_WIN
+    ? join(process.env.USERPROFILE || '', 'AppData', 'Local', 'ms-playwright')
+    : join(process.env.HOME || '', '.cache', 'ms-playwright')
   let pyHasChromium = false
   try {
     if (existsSync(pwBrowserPath)) {
@@ -150,8 +183,9 @@ async function runInstall(): Promise<void> {
   } catch {}
   if (!pyHasChromium) {
     log(c('yellow', '  → installing playwright chromium for python...'))
-    const pwExe = join(dsDir, '.venv', 'Scripts', 'playwright.exe')
-    spawnSync(pwExe, ['install', 'chromium'], { stdio: 'pipe', shell: true })
+    const pwExeName = IS_WIN ? 'playwright.exe' : 'playwright'
+    const pwExe = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', pwExeName)
+    spawnSync(pwExe, ['install', 'chromium'], { stdio: 'pipe', shell: IS_WIN })
     log(c('green', '  ✓ playwright chromium installed'))
   } else {
     log(c('green', '  ✓ playwright chromium already present'))
@@ -197,7 +231,7 @@ async function runInstall(): Promise<void> {
     spawnSync('bun', ['x', 'playwright', 'install', 'chromium'], {
       cwd: join(ROOT, 'vendor', 'qwen-gate'),
       stdio: 'pipe',
-      shell: true,
+      shell: IS_WIN,
     })
     log(c('green', '  ✓ chromium downloaded'))
   }
@@ -218,6 +252,8 @@ interface DaemonConfig {
   command: string[]
 }
 
+const IS_WIN = process.platform === 'win32'
+
 const DAEMONS: DaemonConfig[] = [
   {
     id: 'qwen-gate',
@@ -234,8 +270,11 @@ const DAEMONS: DaemonConfig[] = [
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
     // app_windows.py imports the FastAPI app object directly (avoids uvicorn
-    // string-import resolution which fails on Windows).
-    command: ['.venv/Scripts/python.exe', 'app_windows.py'],
+    // string-import resolution which fails on Windows with shell:true).
+    // On Unix, app.py works fine (uvicorn resolves the string correctly).
+    command: IS_WIN
+      ? ['.venv/Scripts/python.exe', 'app_windows.py']
+      : ['.venv/bin/python', 'app.py'],
   },
   {
     id: 'glm-free-api',
@@ -244,7 +283,8 @@ const DAEMONS: DaemonConfig[] = [
     auth: 'Waguri',
     cwd: 'vendor/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
-    command: ['zai-api.exe'],
+    // Pre-built binary (Windows: zai-api.exe, Unix: ./zai-api symlink)
+    command: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
   },
   {
     id: 'kimi-free-api',
@@ -253,8 +293,6 @@ const DAEMONS: DaemonConfig[] = [
     cwd: 'vendor/kimi-free-api',
     env: {},
     // Use 'start' (node dist/index.js) instead of 'dev' (tsup --watch).
-    // The dist/ folder is committed so no build needed, and 'dev' mode is
-    // slow on Windows due to tsup watch + esbuild service overhead.
     command: ['bun', 'run', 'start'],
   },
 ]
@@ -271,8 +309,9 @@ async function startDaemon(cfg: DaemonConfig): Promise<boolean> {
   const logPath = join(LOG_DIR, `${cfg.id}.log`)
   const logFd = openSync(logPath, 'a')
   const childEnv = { ...process.env, ...cfg.env } as NodeJS.ProcessEnv
-  // On Windows, normalize paths to backslashes so cmd.exe (shell:true) resolves
-  // relative paths like .venv\Scripts\python.exe correctly.
+  // On Windows, normalize paths to backslashes + use shell:true so cmd.exe
+  // resolves relative paths like .venv\Scripts\python.exe via PATHEXT.
+  // On Unix, shell:false (avoids quoting issues) — paths work natively.
   const isWin = process.platform === 'win32'
   const cmd0 = isWin ? cfg.command[0].replace(/\//g, '\\') : cfg.command[0]
   const cmdRest = isWin
@@ -284,7 +323,7 @@ async function startDaemon(cfg: DaemonConfig): Promise<boolean> {
     stdio: ['ignore', logFd, logFd],
     detached: false,
     windowsHide: true,
-    shell: true,
+    shell: isWin,
   })
   runningChildren.set(cfg.id, child)
   writeFileSync(join(PID_DIR, `${cfg.id}.pid`), String(child.pid))
@@ -355,6 +394,23 @@ async function main() {
     return
   }
 
+  if (mode === 'server') {
+    // Headless server mode: boot daemons + proxy server, no Electron.
+    // The web dashboard is served at http://localhost:8080/dashboard
+    log(c('green', '\nDaemons + proxy running. Press Ctrl+C to stop.'))
+    log(c('blue', '\n=== Starting proxy server (headless) ==='))
+    log(`  Dashboard: http://localhost:8080/dashboard`)
+    log(`  OpenAI API: http://localhost:8080/v1/chat/completions`)
+    log(`  Logs:      ${LOG_DIR}`)
+    const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
+    server.on('exit', async (code) => {
+      await stopAllDaemons()
+      process.exit(code ?? 0)
+    })
+    process.on('SIGINT', async () => { await stopAllDaemons(); process.exit(0) })
+    return
+  }
+
   if (mode === 'all') {
     log(c('blue', '\n=== Starting Chat2API Electron app ==='))
     log(`  Dashboard: http://localhost:8080`)
@@ -372,9 +428,11 @@ async function main() {
 // Helpers
 // ============================================================================
 function needsInstall(): boolean {
+  const venvPython = IS_WIN ? '.venv/Scripts/python.exe' : '.venv/bin/python'
+  const glmBin = IS_WIN ? 'zai-api.exe' : 'zai-api'
   const checks = [
-    join(ROOT, 'vendor/glm-free-api/zai-api.exe'),
-    join(ROOT, 'vendor/deepseek-api/.venv/Scripts/python.exe'),
+    join(ROOT, 'vendor/glm-free-api', glmBin),
+    join(ROOT, 'vendor/deepseek-api', venvPython),
     join(ROOT, 'vendor/qwen-gate/node_modules'),
     join(ROOT, 'vendor/kimi-free-api/node_modules'),
     join(ROOT, 'node_modules'),
@@ -383,8 +441,14 @@ function needsInstall(): boolean {
 }
 
 function commandExists(cmd: string): boolean {
-  const result = spawnSync('where', [cmd], { stdio: 'pipe' })
-  return result.status === 0
+  // On Windows use 'where', on Unix use 'which'. Fall back to 'command -v' if neither.
+  const isWin = process.platform === 'win32'
+  const checker = isWin ? 'where' : 'which'
+  const result = spawnSync(checker, [cmd], { stdio: 'pipe', shell: isWin })
+  if (result.status === 0) return true
+  // Fallback: try 'command -v' (works on both bash and sh)
+  const fallback = spawnSync('sh', ['-c', `command -v ${cmd}`], { stdio: 'pipe' })
+  return fallback.status === 0
 }
 
 function sleep(ms: number): Promise<void> {

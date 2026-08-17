@@ -67,14 +67,15 @@ export interface DaemonStatus {
   autoStart: boolean
 }
 
-/** Default daemon specs for the 4 vendored standalone projects. Windows-only. */
+/** Default daemon specs for the 4 vendored standalone projects. */
+const IS_WIN = process.platform === 'win32'
+
 export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
   {
     id: 'qwen-gate',
     name: 'Qwen Gate (Qwen)',
     port: 26405,
     healthPath: '/health',
-    // bun.exe resolves via PATH (shell:true in spawn)
     startCommand: ['bun', 'src/index.tsx'],
     cwd: 'vendor/qwen-gate',
     env: { PORT: '26405' },
@@ -86,10 +87,14 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     port: 8000,
     healthPath: '/v1/models',
     // Use the venv python — never the system python, so we don't pollute the
-    // user's global env. On Windows, venv python lives at .venv/Scripts/python.exe.
+    // user's global env. On Windows, venv python lives at .venv/Scripts/python.exe;
+    // on Unix at .venv/bin/python.
     // app_windows.py imports the FastAPI app object directly (avoids uvicorn's
     // string-import resolution which fails on Windows with shell:true spawn).
-    startCommand: ['.venv/Scripts/python.exe', 'app_windows.py'],
+    // On Unix, app.py works fine.
+    startCommand: IS_WIN
+      ? ['.venv/Scripts/python.exe', 'app_windows.py']
+      : ['.venv/bin/python', 'app.py'],
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
     required: true,
@@ -99,9 +104,8 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     name: 'GLM-Free-API (Z.ai)',
     port: 3001,
     healthPath: '/v1/models',
-    // Pre-built Windows binary (zai-api-windows-amd64.exe copied to zai-api.exe
-    // by run.ts install). No Go runtime needed.
-    startCommand: ['zai-api.exe'],
+    // Pre-built binary (Windows: zai-api.exe, Unix: ./zai-api symlink)
+    startCommand: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
     cwd: 'vendor/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
     required: true,
@@ -112,7 +116,6 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     port: 5566,
     healthPath: '/v1/models',
     // Use 'start' (node dist/index.js) — dist/ is committed, no build needed.
-    // 'dev' uses tsup --watch which is slow on Windows.
     startCommand: ['bun', 'run', 'start'],
     cwd: 'vendor/kimi-free-api',
     env: {},
@@ -330,7 +333,7 @@ export class DaemonSupervisor {
         `[DaemonSupervisor] started ${spec.id} pid=${pid} cmd=${spec.startCommand.join(' ')}`
       )
 
-      (child as any).on('exit', (code, signal) => {
+      ;(child as any).on('exit', (code, signal) => {
         // Cancel any pending SIGKILL timer.
         if (entry.killTimer) {
           clearTimeout(entry.killTimer)
@@ -375,7 +378,7 @@ export class DaemonSupervisor {
         }
       })
 
-      (child as any).on('error', (err: NodeJS.ErrnoException) => {
+      ;(child as any).on('error', (err: NodeJS.ErrnoException) => {
         if (entry.killTimer) {
           clearTimeout(entry.killTimer)
           entry.killTimer = null
@@ -474,7 +477,7 @@ export class DaemonSupervisor {
         resolveStop(true)
       }
 
-      (child as any).once('exit', finish)
+      ;(child as any).once('exit', finish)
 
       try {
         child.kill('SIGTERM')
@@ -629,10 +632,10 @@ export class DaemonSupervisor {
         shell: useShell,
       })
 
-      (child as any).on('error', (err: NodeJS.ErrnoException) => {
+      ;(child as any).on('error', (err: NodeJS.ErrnoException) => {
         console.error(`[DaemonSupervisor] spawnAuthWindow(${id}) child error:`, err)
       })
-      (child as any).on('exit', (code, signal) => {
+      ;(child as any).on('exit', (code, signal) => {
         console.log(
           `[DaemonSupervisor] spawnAuthWindow(${id}) exited code=${code} signal=${signal}`
         )
@@ -712,29 +715,32 @@ export class DaemonSupervisor {
    */
   private preflight(spec: DaemonSpec): string {
     const cwd = resolve(this.projectRoot, spec.cwd)
+    const isWin = process.platform === 'win32'
     if (spec.id === 'glm-free-api') {
-      // run.ts copies zai-api-windows-amd64.exe → zai-api.exe
-      const binaryPath = join(cwd, 'zai-api.exe')
+      const binName = isWin ? 'zai-api.exe' : 'zai-api'
+      const binaryPath = join(cwd, binName)
       if (!existsSync(binaryPath)) {
-        return 'pre-built binary not found — run start.bat (or: bun run.ts install)'
+        return 'pre-built binary not found — run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     if (spec.id === 'kimi-free-api') {
       const nm = join(cwd, 'node_modules')
       if (!existsSync(nm)) {
-        return 'deps not installed — run start.bat (or: bun run.ts install)'
+        return 'deps not installed — run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     if (spec.id === 'deepseek-api') {
-      const venvPython = join(cwd, '.venv', 'Scripts', 'python.exe')
+      const venvPython = isWin
+        ? join(cwd, '.venv', 'Scripts', 'python.exe')
+        : join(cwd, '.venv', 'bin', 'python')
       if (!existsSync(venvPython)) {
-        return 'python venv not created — run start.bat (or: bun run.ts install)'
+        return 'python venv not created — run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     if (spec.id === 'qwen-gate') {
       const nm = join(cwd, 'node_modules')
       if (!existsSync(nm)) {
-        return 'deps not installed — run start.bat (or: bun run.ts install)'
+        return 'deps not installed — run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     return ''

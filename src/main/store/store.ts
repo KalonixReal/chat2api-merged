@@ -1,10 +1,45 @@
 /**
  * Credential Storage Module - Core Storage Implementation
  * Uses electron-store for persistent storage
- * Uses Electron's safeStorage API for sensitive data encryption
+ * Uses Electron's safeStorage API for sensitive data encryption (when available)
+ *
+ * In headless mode (no Electron), falls back to plain storage + a local data
+ * directory — so the proxy server + dashboard can run with `bun server.ts`.
  */
 
-import { app, safeStorage, BrowserWindow } from 'electron'
+// Dynamic electron import — falls back to stubs when Electron isn't available
+// (headless server mode). This lets the same code run both in Electron and
+// in standalone `bun server.ts` mode.
+let app: any
+let safeStorage: any
+let BrowserWindow: any
+
+try {
+  const electron = require('electron')
+  app = electron.app
+  safeStorage = electron.safeStorage
+  BrowserWindow = electron.BrowserWindow
+} catch {
+  // Headless mode — stub Electron APIs
+  const path = require('path')
+  const fs = require('fs')
+  const DATA_DIR = path.join(process.cwd(), 'data')
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+  app = {
+    isReady: () => true,
+    getPath: (name: string) => name === 'userData' ? DATA_DIR : DATA_DIR,
+    on: () => {},
+    once: () => {},
+    quit: () => process.exit(0),
+  }
+  safeStorage = {
+    isEncryptionAvailable: () => false,
+    encryptString: (str: string) => Buffer.from(str, 'utf-8'),
+    decryptString: (buf: Buffer) => buf.toString('utf-8'),
+  }
+  BrowserWindow = class { constructor() {} }
+}
+
 import { homedir } from 'os'
 import { join } from 'path'
 import {

@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>chat2api-merged — Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f1117; --bg-card: #1a1d27; --bg-hover: #222632; --bg-input: #0d0f15;
+      --border: #2a2e3a; --border-hover: #3a3f4d;
+      --text: #e4e6eb; --text-muted: #8b8f9a; --text-dim: #5a5e68;
+      --accent: #6366f1; --accent-hover: #5558e0; --accent-bg: rgba(99,102,241,0.1);
+      --green: #22c55e; --green-bg: rgba(34,197,94,0.1);
+      --red: #ef4444; --red-bg: rgba(239,68,68,0.1);
+      --yellow: #f59e0b; --yellow-bg: rgba(245,158,11,0.1);
+      --orange: #f97316; --orange-bg: rgba(249,115,22,0.1);
+      --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh;
+    }
+    /* Header */
+    .header {
+      background: var(--bg-card); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .status-dot.up { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .status-dot.down { background: var(--red); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+      border-radius: 12px; font-size: 11px; font-weight: 600;
+    }
+    .badge-up { background: var(--green-bg); color: var(--green); }
+    .badge-down { background: var(--red-bg); color: var(--red); }
+    .badge-warn { background: var(--yellow-bg); color: var(--yellow); }
+    /* Layout */
+    .layout { display: flex; min-height: calc(100vh - 57px); }
+    .sidebar {
+      width: 220px; background: var(--bg-card); border-right: 1px solid var(--border);
+      padding: 16px 12px; flex-shrink: 0;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; color: var(--text-muted); font-size: 14px;
+      transition: all 0.15s; margin-bottom: 4px;
+    }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+    .nav-item.active { background: var(--accent-bg); color: var(--accent); }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .main { flex: 1; padding: 24px; overflow-x: auto; max-width: calc(100vw - 220px); }
+    .page { display: none; }
+    .page.active { display: block; }
+    /* Cards */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .card-icon {
+      width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    /* Grid */
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
+    /* Form */
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+    input, textarea, select {
+      width: 100%; padding: 8px 12px; background: var(--bg-input);
+      border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+      font-size: 14px; font-family: inherit; transition: border 0.15s;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+    textarea { min-height: 80px; resize: vertical; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+    /* Button */
+    .btn {
+      padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg-hover); color: var(--text); font-size: 14px;
+      cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center;
+      gap: 6px; font-weight: 500;
+    }
+    .btn:hover { background: var(--border-hover); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-danger { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* Table */
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 12px; font-size: 12px; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    tr:hover { background: var(--bg-hover); }
+    /* Toast */
+    .toasts { position: fixed; bottom: 16px; right: 16px; z-index: 200; display: flex; flex-direction: column; gap: 8px; max-width: 380px; }
+    .toast {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideIn 0.3s;
+    }
+    .toast.success { border-color: var(--green); } .toast.error { border-color: var(--red); }
+    .toast.warn { border-color: var(--yellow); } .toast.captcha { border-color: var(--orange); }
+    .toast-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .toast-body { font-size: 12px; color: var(--text-muted); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } }
+    /* CAPTCHA banner */
+    .captcha-banner {
+      background: var(--orange-bg); border: 1px solid var(--orange); border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+    }
+    .captcha-banner-icon { font-size: 20px; }
+    .captcha-banner-text { flex: 1; font-size: 13px; }
+    .captcha-banner-actions { display: flex; gap: 8px; }
+    /* Daemon list */
+    .daemon-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px; border-bottom: 1px solid var(--border);
+    }
+    .daemon-row:last-child { border-bottom: none; }
+    .daemon-info { display: flex; align-items: center; gap: 12px; }
+    .daemon-name { font-weight: 500; font-size: 14px; }
+    .daemon-port { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { text-align: center; padding: 32px; color: var(--text-dim); font-style: italic; }
+    /* Notification bell */
+    .bell {
+      position: relative; width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      background: var(--bg-hover); transition: all 0.15s;
+    }
+    .bell:hover { background: var(--border-hover); }
+    .bell-badge {
+      position: absolute; top: -4px; right: -4px; background: var(--red); color: white;
+      font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; padding: 0 4px;
+    }
+    .notif-panel {
+      position: absolute; top: 50px; right: 24px; width: 380px; max-height: 500px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden; z-index: 200;
+      display: none; flex-direction: column;
+    }
+    .notif-panel.open { display: flex; }
+    .notif-list { overflow-y: auto; flex: 1; }
+    .notif-item { padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+    .notif-item:hover { background: var(--bg-hover); }
+    .notif-icon { flex-shrink: 0; }
+    .notif-content { flex: 1; min-width: 0; }
+    .notif-title { font-size: 13px; font-weight: 600; }
+    .notif-body { font-size: 12px; color: var(--text-muted); margin-top: 2px; word-wrap: break-word; }
+    .notif-time { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .h2 { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+    code { background: var(--bg-input); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">⚡ chat2api-merged</div>
+    <div class="header-right">
+      <div id="proxy-status" class="badge badge-warn"><span class="status-dot down"></span> Proxy: ...</div>
+      <div class="bell" id="bell" onclick="toggleNotifPanel()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="bell-badge" id="bell-badge" style="display:none">0</div>
+      </div>
+      <div class="notif-panel" id="notif-panel">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:14px">Notifications</strong>
+          <button class="btn btn-sm" onclick="dismissAllNotifs()">Dismiss all</button>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-item active" data-page="overview" onclick="showPage('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" data-page="providers" onclick="showPage('providers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
+        Provider Setup
+      </div>
+      <div class="nav-item" data-page="models" onclick="showPage('models')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Models
+      </div>
+      <div class="nav-item" data-page="sessions" onclick="showPage('sessions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Sessions
+      </div>
+      <div class="nav-item" data-page="logs" onclick="showPage('logs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Logs
+      </div>
+      <div class="nav-item" data-page="settings" onclick="showPage('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </div>
+    </div>
+
+    <div class="main">
+      <div id="captcha-banner-container"></div>
+
+      <!-- Overview Page -->
+      <div class="page active" id="page-overview">
+        <div class="h1">Overview</div>
+        <div class="h2">Real-time status of all daemons and the proxy</div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Daemons</div>
+            <button class="btn btn-sm" onclick="refreshAll()">Refresh</button>
+          </div>
+          <div id="daemon-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Proxy Server</div>
+          </div>
+          <div id="proxy-info"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Provider Status</div>
+          </div>
+          <div id="provider-status"></div>
+        </div>
+      </div>
+
+      <!-- Provider Setup Page -->
+      <div class="page" id="page-providers">
+        <div class="h1">Provider Setup</div>
+        <div class="h2">Add your accounts for each provider</div>
+        <div class="grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">Q</span> Qwen</div>
+              <span id="qwen-badge" class="badge badge-down">Not configured</span>
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input id="qwen-email" type="email" placeholder="your@email.com" />
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input id="qwen-password" type="password" placeholder="••••••••" />
+            </div>
+            <button class="btn btn-primary" onclick="addQwenAccount()">Add Account</button>
+            <div id="qwen-accounts" style="margin-top:16px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">D</span> DeepSeek</div>
+              <span id="deepseek-badge" class="badge badge-down">No session</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Click the button below to open a browser window and sign in to DeepSeek. The session is saved automatically.</p>
+            <button class="btn btn-primary" onclick="loginDeepSeek()">Login with DeepSeek</button>
+            <div class="form-group" style="margin-top:16px">
+              <label>Test model</label>
+              <input id="deepseek-test-model" type="text" value="deepseek-chat" />
+            </div>
+            <button class="btn btn-sm" onclick="testChat('deepseek')">Test</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--orange-bg)">Z</span> Z.ai (GLM)</div>
+              <span id="glm-badge" class="badge badge-warn">Guest mode</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Paste your Z.ai JWT token (from chat.z.ai → DevTools → Local Storage → <code>token</code>). Leave empty for guest mode (glm-4.7 only).</p>
+            <div class="form-group">
+              <label>ZAI_TOKEN</label>
+              <textarea id="glm-token" placeholder="eyJhbGciOiJIUzI1NiIs..."></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="setGlmToken()">Save & Restart Daemon</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--green-bg)">K</span> Kimi</div>
+              <span id="kimi-badge" class="badge badge-down">Not configured</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Paste your Kimi JWT or refresh_token (from kimi.com → DevTools → cookies/localStorage).</p>
+            <div class="form-group">
+              <label>Token</label>
+              <textarea id="kimi-token" placeholder="eyJhbGciOiJIUzI1NiIs... or refresh_token"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="setKimiToken()">Save Token</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Models Page -->
+      <div class="page" id="page-models">
+        <div class="h1">Models</div>
+        <div class="h2">Discover and manage models from your daemons</div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Live Model Discovery</div>
+            <button class="btn btn-sm btn-primary" onclick="fetchLiveModels()" id="fetch-models-btn">Fetch from Daemons</button>
+          </div>
+          <div id="live-models"></div>
+        </div>
+      </div>
+
+      <!-- Sessions Page -->
+      <div class="page" id="page-sessions">
+        <div class="h1">Sessions & Throttles</div>
+        <div class="h2">Active session mappings and throttled accounts</div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Active Sessions (Session Affinity)</div></div>
+          <div id="sessions-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Throttled Accounts</div></div>
+          <div id="throttles-list"></div>
+        </div>
+      </div>
+
+      <!-- Logs Page -->
+      <div class="page" id="page-logs">
+        <div class="h1">Logs</div>
+        <div class="h2">Recent request logs from the proxy</div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Request Logs</div>
+            <button class="btn btn-sm" onclick="loadLogs()">Refresh</button>
+          </div>
+          <div id="logs-list" style="max-height:600px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div class="page" id="page-settings">
+        <div class="h1">Settings</div>
+        <div class="h2">Proxy configuration</div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Proxy</div></div>
+          <div class="form-group">
+            <label>Proxy Port</label>
+            <input id="proxy-port" type="number" value="8080" />
+          </div>
+          <div class="form-group">
+            <label>Proxy Host</label>
+            <input id="proxy-host" type="text" value="127.0.0.1" />
+          </div>
+          <button class="btn btn-primary" onclick="saveProxySettings()">Save</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Qwen Code Configuration</div></div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Add this to your <code>~/.qwen/settings.json</code>:</p>
+          <pre style="background:var(--bg-input);padding:12px;border-radius:6px;overflow-x:auto;font-size:12px"><code>{
+  "modelProviders": {
+    "chat2api-merged": [
+      { "id": "qwen3-max",      "envKey": "C2A_KEY", "baseUrl": "http://localhost:8080/v1" },
+      { "id": "deepseek-chat",  "envKey": "C2A_KEY", "baseUrl": "http://localhost:8080/v1" },
+      { "id": "glm-4.7",        "envKey": "C2A_KEY", "baseUrl": "http://localhost:8080/v1" },
+      { "id": "kimi-k2.6",      "envKey": "C2A_KEY", "baseUrl": "http://localhost:8080/v1" }
+    ]
+  },
+  "providerProtocol": { "chat2api-merged": "openai" }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+<script>
+const API = '/v0/management/dashboard';
+let notifs = [];
+let notifPanelOpen = false;
+
+// ─── Navigation ──────────────────────────────────────────────────────────
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  if (page === 'overview') refreshAll();
+  if (page === 'models') fetchLiveModels();
+  if (page === 'sessions') loadSessions();
+  if (page === 'logs') loadLogs();
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────
+function toast(title, body, type = 'info', sticky = false) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<div class="toast-title">${title}</div>${body ? `<div class="toast-body">${body}</div>` : ''}`;
+  document.getElementById('toasts').appendChild(el);
+  if (!sticky) setTimeout(() => el.remove(), 10000);
+}
+
+// ─── API helper ──────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const resp = await fetch(API + path, opts);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error?.message || data.error || `HTTP ${resp.status}`);
+    return data;
+  } catch (err) {
+    toast('API Error', err.message, 'error');
+    throw err;
+  }
+}
+
+// ─── Daemons ─────────────────────────────────────────────────────────────
+async function loadDaemons() {
+  try {
+    const data = await api('GET', '/daemons');
+    const list = document.getElementById('daemon-list');
+    if (!data.daemons || data.daemons.length === 0) {
+      list.innerHTML = '<div class="empty">No daemons configured</div>';
+      return;
+    }
+    list.innerHTML = data.daemons.map(d => `
+      <div class="daemon-row">
+        <div class="daemon-info">
+          <span class="status-dot ${d.healthy ? 'up' : 'down'}"></span>
+          <div>
+            <div class="daemon-name">${d.name}</div>
+            <div class="daemon-port">:${d.port} — ${d.healthy ? 'UP' : (d.running ? 'starting...' : 'down')}</div>
+            ${d.detail ? `<div style="font-size:11px;color:var(--text-dim)">${d.detail}</div>` : ''}
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="restartDaemon('${d.id}')">Restart</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('daemon-list').innerHTML = '<div class="empty">Failed to load daemons</div>';
+  }
+}
+
+async function restartDaemon(id) {
+  toast('Restarting...', id, 'info');
+  await api('POST', `/daemons/${id}/restart`);
+  toast('Restarted', id, 'success');
+  loadDaemons();
+}
+
+// ─── Provider status ──────────────────────────────────────────────────────
+async function loadProviderStatus() {
+  try {
+    const data = await api('GET', '/providers/status');
+    const el = document.getElementById('provider-status');
+    const p = data.providers;
+    const row = (label, info) => `
+      <div class="daemon-row">
+        <div class="daemon-info">
+          <span class="status-dot ${info.daemonUp ? 'up' : 'down'}"></span>
+          <div>
+            <div class="daemon-name">${label}</div>
+            <div class="daemon-port">${info.configured ? 'Configured' : 'Not configured'}${info.accountCount ? ' • ' + info.accountCount + ' accounts' : ''}</div>
+          </div>
+        </div>
+      </div>`;
+    el.innerHTML = row('Qwen', p.qwen) + row('DeepSeek', p.deepseek) + row('Z.ai (GLM)', p.glm) + row('Kimi', p.kimi);
+
+    // Update badges on provider page
+    const setBadge = (id, info, okText, noText) => {
+      const badge = document.getElementById(id);
+      if (info.daemonUp && info.configured) {
+        badge.className = 'badge badge-up'; badge.textContent = okText;
+      } else if (info.daemonUp) {
+        badge.className = 'badge badge-warn'; badge.textContent = noText;
+      } else {
+        badge.className = 'badge badge-down'; badge.textContent = 'Daemon down';
+      }
+    };
+    setBadge('qwen-badge', p.qwen, `${p.qwen.accountCount} accounts`, 'No accounts');
+    setBadge('deepseek-badge', p.deepseek, 'Session ready', 'No session');
+    setBadge('glm-badge', p.glm, 'Token set', 'Guest mode');
+    setBadge('kimi-badge', p.kimi, 'Token set', 'No token');
+
+    // Show Qwen accounts
+    if (p.qwen.accounts && p.qwen.accounts.length > 0) {
+      const acctsEl = document.getElementById('qwen-accounts');
+      acctsEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Configured accounts:</div>' +
+        p.qwen.accounts.map(a => `
+          <div class="daemon-row" style="padding:8px 0">
+            <div class="daemon-info">
+              <span class="status-dot ${a.authenticated ? 'up' : 'down'}"></span>
+              <div>
+                <div class="daemon-name">${a.email}</div>
+                <div class="daemon-port">${a.throttled ? 'Throttled' : 'Active'}${a.totalRequests ? ' • ' + a.totalRequests + ' requests' : ''}</div>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="removeQwenAccount('${a.email}')">Remove</button>
+          </div>`).join('');
+    }
+  } catch (err) {
+    document.getElementById('provider-status').innerHTML = '<div class="empty">Failed to load provider status</div>';
+  }
+}
+
+// ─── Qwen accounts ──────────────────────────────────────────────────────
+async function addQwenAccount() {
+  const email = document.getElementById('qwen-email').value.trim();
+  const password = document.getElementById('qwen-password').value;
+  if (!email || !password) { toast('Error', 'Email and password required', 'error'); return; }
+  toast('Adding...', 'Logging into Qwen...', 'info');
+  try {
+    const data = await api('POST', '/qwen/accounts', { email, password });
+    if (data.loginSucceeded) {
+      toast('Success', 'Qwen account added', 'success');
+      document.getElementById('qwen-email').value = '';
+      document.getElementById('qwen-password').value = '';
+      loadProviderStatus();
+    } else {
+      toast('Login failed', data.loginError || 'Unknown error', 'error');
+    }
+  } catch (err) { /* toast shown by api() */ }
+}
+
+async function removeQwenAccount(email) {
+  if (!confirm(`Remove ${email}?`)) return;
+  await api('DELETE', '/qwen/accounts/' + encodeURIComponent(email));
+  toast('Removed', email, 'success');
+  loadProviderStatus();
+}
+
+// ─── DeepSeek ────────────────────────────────────────────────────────────
+async function loginDeepSeek() {
+  toast('Opening...', 'DeepSeek login window', 'info');
+  try {
+    const data = await api('POST', '/deepseek/login');
+    toast(data.success ? 'Opened' : 'Failed', data.message, data.success ? 'success' : 'error');
+  } catch (err) {}
+}
+
+// ─── GLM token ──────────────────────────────────────────────────────────
+async function setGlmToken() {
+  const token = document.getElementById('glm-token').value.trim();
+  if (!token) { toast('Error', 'Token required', 'error'); return; }
+  toast('Saving...', 'Restarting GLM daemon', 'info');
+  try {
+    const data = await api('POST', '/glm/token', { token });
+    toast(data.success ? 'Saved' : 'Failed', data.message, data.success ? 'success' : 'error');
+    if (data.success) loadProviderStatus();
+  } catch (err) {}
+}
+
+// ─── Kimi token ──────────────────────────────────────────────────────────
+async function setKimiToken() {
+  const token = document.getElementById('kimi-token').value.trim();
+  if (!token) { toast('Error', 'Token required', 'error'); return; }
+  try {
+    const data = await api('POST', '/kimi/token', { token });
+    toast(data.success ? 'Saved' : 'Failed', data.message, data.success ? 'success' : 'error');
+    if (data.success) loadProviderStatus();
+  } catch (err) {}
+}
+
+// ─── Test chat ──────────────────────────────────────────────────────────
+async function testChat(provider) {
+  const model = document.getElementById(provider + '-test-model')?.value || undefined;
+  toast('Testing...', `${provider} - ${model || 'default'}`, 'info');
+  try {
+    const data = await api('POST', '/test-chat', { provider, model, message: 'Say hello in one word.' });
+    if (data.success) {
+      const reply = data.data?.choices?.[0]?.message?.content || JSON.stringify(data.data).slice(0, 100);
+      toast('Test OK', reply, 'success');
+    } else {
+      toast('Test failed', `HTTP ${data.status}`, 'error');
+    }
+  } catch (err) {}
+}
+
+// ─── Live models ────────────────────────────────────────────────────────
+async function fetchLiveModels() {
+  const btn = document.getElementById('fetch-models-btn');
+  btn.innerHTML = '<span class="spinner"></span> Fetching...';
+  btn.disabled = true;
+  try {
+    const data = await api('GET', '/live-models');
+    const el = document.getElementById('live-models');
+    if (!data.results || data.results.length === 0) {
+      el.innerHTML = '<div class="empty">No daemons reachable</div>';
+      return;
+    }
+    el.innerHTML = data.results.map(r => `
+      <div style="margin-bottom:16px">
+        <div style="font-weight:600;margin-bottom:8px;text-transform:capitalize">${r.providerId} <span style="font-size:12px;color:var(--text-muted)">(${r.models.length} models${r.error ? ' • error: ' + r.error : ''})</span></div>
+        ${r.models.length > 0 ? `<table><thead><tr><th>Model ID</th><th>Context</th><th>Owner</th></tr></thead><tbody>${r.models.map(m => `<tr><td><code>${m.id}</code></td><td>${m.context_window ? (m.context_window/1000)+'K' : '—'}</td><td>${m.owned_by || '—'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No models</div>'}
+      </div>`).join('');
+  } catch (err) {
+    document.getElementById('live-models').innerHTML = '<div class="empty">Failed to fetch</div>';
+  } finally {
+    btn.innerHTML = 'Fetch from Daemons';
+    btn.disabled = false;
+  }
+}
+
+// ─── Sessions & throttles ────────────────────────────────────────────────
+async function loadSessions() {
+  try {
+    const [sessData, thrData] = await Promise.all([api('GET', '/smart-switcher/sessions'), api('GET', '/smart-switcher/throttles')]);
+    const sessEl = document.getElementById('sessions-list');
+    if (sessData.sessions && sessData.sessions.length > 0) {
+      sessEl.innerHTML = `<table><thead><tr><th>Session Hash</th><th>Provider</th><th>Account</th><th>Model</th><th>Chat ID</th><th>Last Used</th></tr></thead><tbody>${sessData.sessions.map(s => `<tr><td><code>${s.sessionHash.slice(0,12)}…</code></td><td>${s.providerId}</td><td>${s.accountId.slice(0,8)}</td><td>${s.modelId}</td><td>${s.upstreamChatId ? s.upstreamChatId.slice(0,12) : '—'}</td><td>${new Date(s.lastUsed).toLocaleTimeString()}</td></tr>`).join('')}</tbody></table>`;
+    } else {
+      sessEl.innerHTML = '<div class="empty">No active sessions</div>';
+    }
+    const thrEl = document.getElementById('throttles-list');
+    if (thrData.throttles && thrData.throttles.length > 0) {
+      thrEl.innerHTML = `<table><thead><tr><th>Account</th><th>Provider</th><th>Reason</th><th>Unlock at</th></tr></thead><tbody>${thrData.throttles.map(t => `<tr><td><code>${t.accountId.slice(0,12)}</code></td><td>${t.providerId}</td><td>${t.reason}</td><td>${t.throttledUntil ? new Date(t.throttledUntil).toLocaleTimeString() : '—'}</td></tr>`).join('')}</tbody></table>`;
+    } else {
+      thrEl.innerHTML = '<div class="empty">No throttled accounts</div>';
+    }
+  } catch (err) {}
+}
+
+// ─── Logs ────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  try {
+    const resp = await fetch('/v0/management/logs?limit=50');
+    const data = await resp.json();
+    const el = document.getElementById('logs-list');
+    if (data.logs && data.logs.length > 0) {
+      el.innerHTML = data.logs.reverse().map(l => `<div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text-dim)">${new Date(l.timestamp).toLocaleTimeString()}</span> <span style="color:${l.level === 'error' ? 'var(--red)' : l.level === 'warn' ? 'var(--yellow)' : 'var(--blue)'}">[${l.level}]</span> ${l.message}</div>`).join('');
+    } else {
+      el.innerHTML = '<div class="empty">No logs</div>';
+    }
+  } catch (err) {
+    document.getElementById('logs-list').innerHTML = '<div class="empty">Failed to load logs</div>';
+  }
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────
+async function loadNotifs() {
+  try {
+    const data = await api('GET', '/notifications');
+    notifs = data.notifications || [];
+    updateBell();
+    renderNotifPanel();
+    renderCaptchaBanner();
+  } catch (err) {}
+}
+
+function updateBell() {
+  const undismissed = notifs.filter(n => !n.dismissed);
+  const badge = document.getElementById('bell-badge');
+  if (undismissed.length > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = undismissed.length > 99 ? '99+' : undismissed.length;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderNotifPanel() {
+  const el = document.getElementById('notif-list');
+  if (notifs.length === 0) {
+    el.innerHTML = '<div class="empty">No notifications</div>';
+    return;
+  }
+  el.innerHTML = notifs.slice(0, 30).map(n => {
+    const colors = { info: 'var(--blue)', warn: 'var(--yellow)', error: 'var(--red)', captcha: 'var(--orange)' };
+    const icons = { info: 'ℹ', warn: '⚠', error: '✗', captcha: '🛡' };
+    return `<div class="notif-item">
+      <div class="notif-icon" style="color:${colors[n.severity]};font-size:16px">${icons[n.severity]}</div>
+      <div class="notif-content">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-body">${n.body || ''}</div>
+        <div class="notif-time">${new Date(n.timestamp).toLocaleString()}</div>
+      </div>
+      ${!n.dismissed ? `<button class="btn btn-sm" onclick="dismissNotif('${n.id}')">Dismiss</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleNotifPanel() {
+  notifPanelOpen = !notifPanelOpen;
+  document.getElementById('notif-panel').classList.toggle('open', notifPanelOpen);
+}
+
+async function dismissNotif(id) {
+  await api('POST', '/notifications/dismiss', { id });
+  notifs = notifs.map(n => n.id === id ? { ...n, dismissed: true } : n);
+  updateBell(); renderNotifPanel(); renderCaptchaBanner();
+}
+
+async function dismissAllNotifs() {
+  await api('POST', '/notifications/dismiss-all');
+  notifs = notifs.map(n => ({ ...n, dismissed: true }));
+  updateBell(); renderNotifPanel(); renderCaptchaBanner();
+}
+
+function renderCaptchaBanner() {
+  const captchaNotifs = notifs.filter(n => n.severity === 'captcha' && !n.dismissed);
+  const el = document.getElementById('captcha-banner-container');
+  if (captchaNotifs.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = captchaNotifs.map(n => `
+    <div class="captcha-banner">
+      <div class="captcha-banner-icon">🛡</div>
+      <div class="captcha-banner-text">
+        <strong>CAPTCHA Required — ${n.providerId || 'Unknown provider'}</strong><br>
+        ${n.body || 'Automated recovery failed. Solve the CAPTCHA manually, then click Retry.'}
+      </div>
+      <div class="captcha-banner-actions">
+        <button class="btn btn-sm" onclick="solveCaptcha('${n.providerId}')">Open Login</button>
+        <button class="btn btn-sm btn-primary" onclick="retryRecovery('${n.providerId}','${n.accountId || ''}')">I've solved it — Retry</button>
+      </div>
+    </div>`).join('');
+}
+
+async function solveCaptcha(providerId) {
+  try {
+    const data = await api('POST', '/notifications/solve-captcha', { providerId });
+    if (data.url) {
+      window.open(data.url, '_blank');
+      toast('Opened', 'Login page opened in new tab', 'info');
+    }
+  } catch (err) {}
+}
+
+async function retryRecovery(providerId, accountId) {
+  toast('Retrying...', `Recovery for ${providerId}`, 'info');
+  try {
+    const data = await api('POST', '/notifications/recovery', { providerId, accountId: accountId || undefined });
+    toast(data.success ? 'Recovered' : 'Still failing', data.result?.method || data.result?.detail, data.success ? 'success' : 'error');
+    loadNotifs();
+  } catch (err) {}
+}
+
+// ─── Proxy status ────────────────────────────────────────────────────────
+async function loadProxyStatus() {
+  try {
+    const resp = await fetch('/health');
+    const data = await resp.json();
+    const el = document.getElementById('proxy-status');
+    const info = document.getElementById('proxy-info');
+    if (data.status === 'running') {
+      el.innerHTML = '<span class="status-dot up"></span> Proxy: Running';
+      el.className = 'badge badge-up';
+    } else {
+      el.innerHTML = '<span class="status-dot down"></span> Proxy: Stopped';
+      el.className = 'badge badge-down';
+    }
+    if (info) {
+      info.innerHTML = `<div class="daemon-row"><div class="daemon-info"><div><div class="daemon-name">Koa Proxy Server</div><div class="daemon-port">:8080 — OpenAI-compatible endpoint at <code>/v1/chat/completions</code></div></div></div></div>`;
+    }
+  } catch (err) {
+    document.getElementById('proxy-status').innerHTML = '<span class="status-dot down"></span> Proxy: Down';
+  }
+}
+
+// ─── Refresh ─────────────────────────────────────────────────────────────
+async function refreshAll() {
+  await Promise.allSettled([loadDaemons(), loadProviderStatus(), loadProxyStatus(), loadNotifs()]);
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────
+refreshAll();
+setInterval(refreshAll, 5000); // auto-refresh every 5s
+</script>
+</body>
+</html>

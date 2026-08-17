@@ -160,12 +160,27 @@ export class ProxyServer {
       this.router.use(route.allowedMethods())
     }
 
+    // Web dashboard (replaces the Electron UI) — served at /dashboard
+    this.router.get('/dashboard', async (ctx) => {
+      const { serveDashboard } = require('./dashboard')
+      await serveDashboard(ctx)
+    })
+
+    // Redirect root to dashboard for browser users (API clients still get JSON
+    // via Accept header — but since root just returns a small JSON, redirecting
+    // browser navigation to /dashboard is more useful)
     this.router.get('/', async (ctx) => {
+      const accept = ctx.headers.accept || ''
+      if (accept.includes('text/html')) {
+        ctx.redirect('/dashboard')
+        return
+      }
       ctx.body = {
         name: 'Chat2API Proxy',
         version: '1.1.2',
-        description: 'OpenAI API compatible proxy service',
+        description: 'OpenAI API compatible proxy service — dashboard at /dashboard',
         endpoints: [
+          'GET /dashboard (web UI)',
           'POST /v1/chat/completions',
           'GET /v1/models',
           'GET /v1/models/:model',
@@ -181,8 +196,7 @@ export class ProxyServer {
       ctx.body = {
         status: status.isRunning ? 'running' : 'stopped',
         uptime: status.uptime,
-        statistics: {
-          totalRequests: statistics.totalRequests,
+        statistics: {          totalRequests: statistics.totalRequests,
           successRequests: statistics.successRequests,
           failedRequests: statistics.failedRequests,
           activeConnections: statistics.activeConnections,
@@ -199,6 +213,13 @@ export class ProxyServer {
     // This must be registered before management routes
     const managementEnableCheck = async (ctx: Context, next: Next) => {
       if (!ctx.path.startsWith('/v0/management')) {
+        await next()
+        return
+      }
+
+      // Dashboard routes are always available — they're the primary UI now
+      // (replaces the Electron dashboard). No management API enablement needed.
+      if (ctx.path.startsWith('/v0/management/dashboard')) {
         await next()
         return
       }

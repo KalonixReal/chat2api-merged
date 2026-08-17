@@ -21,3 +21,5 @@ Thumbs.db
 !vendor/glm-free-api/captcha-collector-windows-amd64.exe
 !vendor/glm-free-api/zai-api.exe
 !vendor/glm-free-api/captcha-collector.exe
+out/
+dist/

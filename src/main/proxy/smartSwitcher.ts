@@ -573,6 +573,11 @@ class SmartSwitcher extends EventEmitter {
     return Array.from(this.throttleMap.values())
   }
 
+  /** Snapshot of all active session mappings (for the dashboard). */
+  snapshotSessions(): SessionMapping[] {
+    return Array.from(this.sessionMap.values()).map((s) => ({ ...s }))
+  }
+
   // ─── Failover ──────────────────────────────────────────────────────────────
 
   /**

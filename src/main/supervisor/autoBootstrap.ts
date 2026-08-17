@@ -1,6 +1,6 @@
 /**
  * Auto-bootstrap helper — ensures deps are installed before the supervisor
- * tries to spawn daemons. Windows-only.
+ * tries to spawn daemons. Cross-platform (Windows + Unix).
  *
  * If any daemon's deps are missing (no venv, no node_modules, no pre-built
  * binary), this runs `bun run.ts install` synchronously and waits for it to
@@ -12,16 +12,19 @@
  */
 
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const PROJECT_ROOT = process.cwd()
+const IS_WIN = process.platform === 'win32'
 
-/** Returns true if any daemon's install artifacts are missing. Windows paths. */
+/** Returns true if any daemon's install artifacts are missing. */
 export function needsInstall(): boolean {
+  const venvPython = IS_WIN ? '.venv/Scripts/python.exe' : '.venv/bin/python'
+  const glmBin = IS_WIN ? 'zai-api.exe' : 'zai-api'
   const checks: Array<{ label: string; path: string }> = [
-    { label: 'glm-free-api binary', path: 'vendor/glm-free-api/zai-api.exe' },
-    { label: 'deepseek-api venv', path: 'vendor/deepseek-api/.venv/Scripts/python.exe' },
+    { label: 'glm-free-api binary', path: `vendor/glm-free-api/${glmBin}` },
+    { label: 'deepseek-api venv', path: `vendor/deepseek-api/${venvPython}` },
     { label: 'qwen-gate node_modules', path: 'vendor/qwen-gate/node_modules' },
     { label: 'kimi-free-api node_modules', path: 'vendor/kimi-free-api/node_modules' },
     { label: 'chat2api node_modules', path: 'node_modules' },
@@ -50,7 +53,7 @@ export async function ensureInstalled(): Promise<boolean> {
     stdio: 'pipe',
     encoding: 'utf-8',
     timeout: 10 * 60 * 1000, // 10 min max — Playwright download can be slow
-    shell: true, // Windows needs shell:true so bun.exe resolves via PATHEXT
+    shell: IS_WIN, // Windows needs shell:true so bun.exe resolves via PATHEXT
   })
   if (result.error) {
     console.error('[AutoBootstrap] install failed to spawn:', result.error)
