@@ -1,44 +1,32 @@
 /**
  * Credential Storage Module - Core Storage Implementation
- * Uses electron-store for persistent storage
- * Uses Electron's safeStorage API for sensitive data encryption (when available)
+ * Uses electron-store for persistent storage with plain-text fallback.
  *
- * In headless mode (no Electron), falls back to plain storage + a local data
- * directory — so the proxy server + dashboard can run with `bun server.ts`.
+ * Electron has been removed from this project. The store uses a local
+ * data/ directory and plain (unencrypted) storage. This is acceptable
+ * because the proxy runs locally on the user's machine.
  */
 
-// Dynamic electron import — falls back to stubs when Electron isn't available
-// (headless server mode). This lets the same code run both in Electron and
-// in standalone `bun server.ts` mode.
-let app: any
-let safeStorage: any
-let BrowserWindow: any
+const path = require('path')
+const fs = require('fs')
+const DATA_DIR = path.join(process.cwd(), 'data')
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
 
-try {
-  const electron = require('electron')
-  app = electron.app
-  safeStorage = electron.safeStorage
-  BrowserWindow = electron.BrowserWindow
-} catch {
-  // Headless mode — stub Electron APIs
-  const path = require('path')
-  const fs = require('fs')
-  const DATA_DIR = path.join(process.cwd(), 'data')
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
-  app = {
-    isReady: () => true,
-    getPath: (name: string) => name === 'userData' ? DATA_DIR : DATA_DIR,
-    on: () => {},
-    once: () => {},
-    quit: () => process.exit(0),
-  }
-  safeStorage = {
-    isEncryptionAvailable: () => false,
-    encryptString: (str: string) => Buffer.from(str, 'utf-8'),
-    decryptString: (buf: Buffer) => buf.toString('utf-8'),
-  }
-  BrowserWindow = class { constructor() {} }
+const app = {
+  isReady: () => true,
+  getPath: (name: string) => name === 'userData' ? DATA_DIR : DATA_DIR,
+  on: () => {},
+  once: () => {},
+  quit: () => process.exit(0),
 }
+
+const safeStorage = {
+  isEncryptionAvailable: () => false,
+  encryptString: (str: string) => Buffer.from(str, 'utf-8'),
+  decryptString: (buf: Buffer) => buf.toString('utf-8'),
+}
+
+const BrowserWindow = class { constructor() {} }
 
 import { homedir } from 'os'
 import { join } from 'path'
@@ -78,8 +66,9 @@ import { normalizeToolCallingConfig } from '../../shared/toolCalling'
 import { AppLogManager } from '../appLogs/manager'
 import type { AppLogFilter } from '../appLogs/types'
 
-// Dynamically import electron-store (ESM module)
-let Store: any = null
+// JsonStore — plain JSON file store (replaces electron-store, no electron dep)
+import { JsonStore } from './jsonStore'
+let Store: any = JsonStore
 
 /**
  * Storage Instance Type Definition
@@ -125,10 +114,9 @@ class StoreManager {
       return
     }
 
-    // Dynamically import electron-store (ESM module)
+    // Store is already assigned (JsonStore class)
     if (!Store) {
-      const module = await import('electron-store')
-      Store = module.default
+      Store = JsonStore
     }
 
     const storagePath = this.getStoragePath()

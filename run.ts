@@ -204,14 +204,6 @@ async function runInstall(): Promise<void> {
       log(c('green', `  ✓ ${name} deps installed`))
     }
   }
-  // ALWAYS re-apply the electron shim after install (bun install restores the
-  // original electron package which breaks headless server mode).
-  log(c('yellow', '  → patching electron for headless mode...'))
-  const patchScript = join(ROOT, 'scripts', 'patch-electron.js')
-  if (existsSync(patchScript)) {
-    spawnSync('node', [patchScript], { cwd: ROOT, stdio: 'pipe', shell: IS_WIN })
-    log(c('green', '  ✓ electron patched'))
-  }
   // Patch kimi port 8000 → 5566
   const kimiCfg = join(ROOT, 'vendor', 'kimi-free-api', 'configs', 'dev', 'service.yml')
   if (existsSync(kimiCfg)) {
@@ -380,13 +372,6 @@ async function main() {
   if (needsInstall() || mode === 'install') {
     await runInstall()
     if (mode === 'install') return
-  }
-
-  // ALWAYS patch electron before starting the server (bun install may have
-  // restored the real electron package, breaking headless mode).
-  const patchScript = join(ROOT, 'scripts', 'patch-electron.js')
-  if (existsSync(patchScript) && existsSync(join(ROOT, 'node_modules', 'electron'))) {
-    spawnSync('node', [patchScript], { cwd: ROOT, stdio: 'pipe', shell: IS_WIN })
   }
 
   if (mode === 'daemons' || mode === 'all') {

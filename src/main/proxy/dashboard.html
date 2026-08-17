@@ -7,162 +7,176 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg: #0f1117; --bg-card: #1a1d27; --bg-hover: #222632; --bg-input: #0d0f15;
-      --border: #2a2e3a; --border-hover: #3a3f4d;
+      --bg: #0a0c10; --bg-card: #14171f; --bg-hover: #1c2029; --bg-input: #0d0f15;
+      --border: #252a36; --border-hover: #353a48;
       --text: #e4e6eb; --text-muted: #8b8f9a; --text-dim: #5a5e68;
-      --accent: #6366f1; --accent-hover: #5558e0; --accent-bg: rgba(99,102,241,0.1);
+      --accent: #6366f1; --accent-hover: #5558e0; --accent-bg: rgba(99,102,241,0.12);
       --green: #22c55e; --green-bg: rgba(34,197,94,0.1);
       --red: #ef4444; --red-bg: rgba(239,68,68,0.1);
       --yellow: #f59e0b; --yellow-bg: rgba(245,158,11,0.1);
       --orange: #f97316; --orange-bg: rgba(249,115,22,0.1);
       --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1);
+      --purple: #a855f7; --purple-bg: rgba(168,85,247,0.1);
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh;
+      font-size: 14px;
     }
-    /* Header */
     .header {
       background: var(--bg-card); border-bottom: 1px solid var(--border);
-      padding: 12px 24px; display: flex; align-items: center; gap: 16px;
-      position: sticky; top: 0; z-index: 100;
+      padding: 10px 20px; display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 100; height: 52px;
     }
-    .logo { font-size: 18px; font-weight: 700; color: var(--accent); }
-    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .status-dot.up { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .logo { font-size: 16px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-dot.up { background: var(--green); box-shadow: 0 0 6px var(--green); }
     .status-dot.down { background: var(--red); }
     .badge {
       display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
-      border-radius: 12px; font-size: 11px; font-weight: 600;
+      border-radius: 10px; font-size: 11px; font-weight: 600;
     }
     .badge-up { background: var(--green-bg); color: var(--green); }
     .badge-down { background: var(--red-bg); color: var(--red); }
     .badge-warn { background: var(--yellow-bg); color: var(--yellow); }
-    /* Layout */
-    .layout { display: flex; min-height: calc(100vh - 57px); }
+    .badge-info { background: var(--blue-bg); color: var(--blue); }
+    .badge-purple { background: var(--purple-bg); color: var(--purple); }
+    .layout { display: flex; min-height: calc(100vh - 52px); }
     .sidebar {
-      width: 220px; background: var(--bg-card); border-right: 1px solid var(--border);
-      padding: 16px 12px; flex-shrink: 0;
+      width: 200px; background: var(--bg-card); border-right: 1px solid var(--border);
+      padding: 12px 8px; flex-shrink: 0; position: sticky; top: 52px; height: calc(100vh - 52px); overflow-y: auto;
     }
     .nav-item {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-      border-radius: 8px; cursor: pointer; color: var(--text-muted); font-size: 14px;
-      transition: all 0.15s; margin-bottom: 4px;
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 13px;
+      transition: all 0.12s; margin-bottom: 2px;
     }
     .nav-item:hover { background: var(--bg-hover); color: var(--text); }
     .nav-item.active { background: var(--accent-bg); color: var(--accent); }
     .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .main { flex: 1; padding: 24px; overflow-x: auto; max-width: calc(100vw - 220px); }
+    .main { flex: 1; padding: 20px; overflow-x: auto; max-width: calc(100vw - 200px); }
     .page { display: none; }
     .page.active { display: block; }
-    /* Cards */
     .card {
       background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 20px; margin-bottom: 16px;
+      border-radius: 10px; padding: 16px; margin-bottom: 14px;
     }
-    .card-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .card-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
+    .card-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
     .card-icon {
-      width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
-      justify-content: center; font-size: 16px; flex-shrink: 0;
+      width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0;
     }
-    /* Grid */
-    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
-    /* Form */
-    .form-group { margin-bottom: 12px; }
-    label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+    .grid-2 { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .form-group { margin-bottom: 10px; }
+    label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 3px; font-weight: 500; }
     input, textarea, select {
-      width: 100%; padding: 8px 12px; background: var(--bg-input);
-      border: 1px solid var(--border); border-radius: 6px; color: var(--text);
-      font-size: 14px; font-family: inherit; transition: border 0.15s;
+      width: 100%; padding: 7px 10px; background: var(--bg-input);
+      border: 1px solid var(--border); border-radius: 5px; color: var(--text);
+      font-size: 13px; font-family: inherit; transition: border 0.12s;
     }
     input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-    textarea { min-height: 80px; resize: vertical; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
-    /* Button */
+    textarea { min-height: 60px; resize: vertical; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
     .btn {
-      padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px;
-      background: var(--bg-hover); color: var(--text); font-size: 14px;
-      cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center;
+      padding: 7px 14px; border: 1px solid var(--border); border-radius: 5px;
+      background: var(--bg-hover); color: var(--text); font-size: 13px;
+      cursor: pointer; transition: all 0.12s; display: inline-flex; align-items: center;
       gap: 6px; font-weight: 500;
     }
-    .btn:hover { background: var(--border-hover); }
+    .btn:hover { background: var(--border-hover); border-color: var(--border-hover); }
     .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
     .btn-primary:hover { background: var(--accent-hover); }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .btn-danger { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+    .btn-sm { padding: 4px 9px; font-size: 12px; }
+    .btn-danger { background: var(--red-bg); color: var(--red); border-color: rgba(239,68,68,0.3); }
+    .btn-danger:hover { background: rgba(239,68,68,0.2); }
+    .btn-success { background: var(--green-bg); color: var(--green); border-color: rgba(34,197,94,0.3); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    /* Table */
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 8px 12px; font-size: 12px; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); }
-    td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    th { text-align: left; padding: 7px 10px; font-size: 11px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
     tr:hover { background: var(--bg-hover); }
-    /* Toast */
-    .toasts { position: fixed; bottom: 16px; right: 16px; z-index: 200; display: flex; flex-direction: column; gap: 8px; max-width: 380px; }
+    tr:last-child td { border-bottom: none; }
+    .toasts { position: fixed; bottom: 14px; right: 14px; z-index: 200; display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
     .toast {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideIn 0.3s;
+      padding: 10px 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); animation: slideIn 0.25s;
     }
     .toast.success { border-color: var(--green); } .toast.error { border-color: var(--red); }
     .toast.warn { border-color: var(--yellow); } .toast.captcha { border-color: var(--orange); }
-    .toast-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
     .toast-body { font-size: 12px; color: var(--text-muted); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } }
-    /* CAPTCHA banner */
     .captcha-banner {
       background: var(--orange-bg); border: 1px solid var(--orange); border-radius: 8px;
-      padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
     }
-    .captcha-banner-icon { font-size: 20px; }
-    .captcha-banner-text { flex: 1; font-size: 13px; }
-    .captcha-banner-actions { display: flex; gap: 8px; }
-    /* Daemon list */
-    .daemon-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px; border-bottom: 1px solid var(--border);
-    }
-    .daemon-row:last-child { border-bottom: none; }
-    .daemon-info { display: flex; align-items: center; gap: 12px; }
-    .daemon-name { font-weight: 500; font-size: 14px; }
-    .daemon-port { font-size: 12px; color: var(--text-muted); font-family: monospace; }
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .row:last-child { border-bottom: none; }
+    .row-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .row-name { font-weight: 500; font-size: 13px; }
+    .row-meta { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .empty { text-align: center; padding: 32px; color: var(--text-dim); font-style: italic; }
-    /* Notification bell */
+    .empty { text-align: center; padding: 24px; color: var(--text-dim); font-style: italic; font-size: 13px; }
     .bell {
-      position: relative; width: 36px; height: 36px; border-radius: 8px;
+      position: relative; width: 32px; height: 32px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center; cursor: pointer;
-      background: var(--bg-hover); transition: all 0.15s;
+      background: var(--bg-hover); transition: all 0.12s;
     }
     .bell:hover { background: var(--border-hover); }
     .bell-badge {
-      position: absolute; top: -4px; right: -4px; background: var(--red); color: white;
-      font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px;
+      position: absolute; top: -3px; right: -3px; background: var(--red); color: white;
+      font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px;
       display: flex; align-items: center; justify-content: center; padding: 0 4px;
     }
     .notif-panel {
-      position: absolute; top: 50px; right: 24px; width: 380px; max-height: 500px;
+      position: absolute; top: 46px; right: 20px; width: 360px; max-height: 450px;
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden; z-index: 200;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.5); overflow: hidden; z-index: 200;
       display: none; flex-direction: column;
     }
     .notif-panel.open { display: flex; }
-    .notif-list { overflow-y: auto; flex: 1; }
-    .notif-item { padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+    .notif-list { overflow-y: auto; flex: 1; max-height: 380px; }
+    .notif-item { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
     .notif-item:hover { background: var(--bg-hover); }
-    .notif-icon { flex-shrink: 0; }
+    .notif-icon { flex-shrink: 0; font-size: 14px; }
     .notif-content { flex: 1; min-width: 0; }
     .notif-title { font-size: 13px; font-weight: 600; }
-    .notif-body { font-size: 12px; color: var(--text-muted); margin-top: 2px; word-wrap: break-word; }
-    .notif-time { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-    .h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-    .h2 { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
-    code { background: var(--bg-input); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    .notif-body { font-size: 11px; color: var(--text-muted); margin-top: 2px; word-wrap: break-word; }
+    .notif-time { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+    .h1 { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+    .h2 { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+    code { background: var(--bg-input); padding: 1px 5px; border-radius: 3px; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+    .stat-card { display: flex; flex-direction: column; gap: 4px; }
+    .stat-value { font-size: 24px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+    .tag-custom { background: var(--purple-bg); color: var(--purple); }
+    .tag-default { background: var(--green-bg); color: var(--green); }
+    .tag-discovered { background: var(--orange-bg); color: var(--orange); }
+    .tag-throttled { background: var(--red-bg); color: var(--red); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; max-width: 500px; width: 90%; }
+    .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; font-family: monospace; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: var(--text-dim); }
+    .log-level-info { color: var(--blue); }
+    .log-level-warn { color: var(--yellow); }
+    .log-level-error { color: var(--red); }
+    .log-msg { color: var(--text); }
+    .progress { height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent); transition: width 0.3s; }
+    .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 10px; transition: 0.2s; }
+    .slider:before { position: absolute; content: ''; height: 16px; width: 16px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before { transform: translateX(16px); }
   </style>
 </head>
 <body>
@@ -171,12 +185,12 @@
     <div class="header-right">
       <div id="proxy-status" class="badge badge-warn"><span class="status-dot down"></span> Proxy: ...</div>
       <div class="bell" id="bell" onclick="toggleNotifPanel()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <div class="bell-badge" id="bell-badge" style="display:none">0</div>
       </div>
       <div class="notif-panel" id="notif-panel">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <strong style="font-size:14px">Notifications</strong>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:13px">Notifications</strong>
           <button class="btn btn-sm" onclick="dismissAllNotifs()">Dismiss all</button>
         </div>
         <div class="notif-list" id="notif-list"></div>
@@ -192,7 +206,11 @@
       </div>
       <div class="nav-item" data-page="providers" onclick="showPage('providers')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
-        Provider Setup
+        Providers
+      </div>
+      <div class="nav-item" data-page="accounts" onclick="showPage('accounts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Accounts
       </div>
       <div class="nav-item" data-page="models" onclick="showPage('models')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -206,6 +224,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
         Logs
       </div>
+      <div class="nav-item" data-page="test" onclick="showPage('test')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Test Chat
+      </div>
       <div class="nav-item" data-page="settings" onclick="showPage('settings')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings
@@ -215,161 +237,125 @@
     <div class="main">
       <div id="captcha-banner-container"></div>
 
-      <!-- Overview Page -->
+      <!-- Overview -->
       <div class="page active" id="page-overview">
         <div class="h1">Overview</div>
-        <div class="h2">Real-time status of all daemons and the proxy</div>
+        <div class="h2">Real-time status of all daemons, providers, and the proxy</div>
+        <div class="grid-2" style="margin-bottom:14px">
+          <div class="card stat-card"><div class="stat-value" id="stat-daemons">-</div><div class="stat-label">Daemons Up</div></div>
+          <div class="card stat-card"><div class="stat-value" id="stat-providers">-</div><div class="stat-label">Active Providers</div></div>
+          <div class="card stat-card"><div class="stat-value" id="stat-models">-</div><div class="stat-label">Total Models</div></div>
+          <div class="card stat-card"><div class="stat-value" id="stat-requests">-</div><div class="stat-label">Total Requests</div></div>
+        </div>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">Daemons</div>
-            <button class="btn btn-sm" onclick="refreshAll()">Refresh</button>
-          </div>
+          <div class="card-header"><div class="card-title">Daemons</div><button class="btn btn-sm" onclick="refreshAll()">Refresh</button></div>
           <div id="daemon-list"></div>
         </div>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">Proxy Server</div>
-          </div>
-          <div id="proxy-info"></div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Provider Status</div>
-          </div>
+          <div class="card-header"><div class="card-title">Provider Status</div></div>
           <div id="provider-status"></div>
         </div>
       </div>
 
-      <!-- Provider Setup Page -->
+      <!-- Providers -->
       <div class="page" id="page-providers">
         <div class="h1">Provider Setup</div>
-        <div class="h2">Add your accounts for each provider</div>
+        <div class="h2">Add credentials for each provider. All changes are saved instantly.</div>
         <div class="grid">
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">Q</span> Qwen</div>
               <span id="qwen-badge" class="badge badge-down">Not configured</span>
             </div>
-            <div class="form-group">
-              <label>Email</label>
-              <input id="qwen-email" type="email" placeholder="your@email.com" />
-            </div>
-            <div class="form-group">
-              <label>Password</label>
-              <input id="qwen-password" type="password" placeholder="••••••••" />
-            </div>
+            <div class="form-group"><label>Email</label><input id="qwen-email" type="email" placeholder="your@email.com" /></div>
+            <div class="form-group"><label>Password</label><input id="qwen-password" type="password" placeholder="••••••••" /></div>
             <button class="btn btn-primary" onclick="addQwenAccount()">Add Account</button>
-            <div id="qwen-accounts" style="margin-top:16px"></div>
+            <div id="qwen-accounts" style="margin-top:12px"></div>
           </div>
-
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">D</span> DeepSeek</div>
               <span id="deepseek-badge" class="badge badge-down">No session</span>
             </div>
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Click the button below to open a browser window and sign in to DeepSeek. The session is saved automatically.</p>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Click to open a browser window and sign in to DeepSeek.</p>
             <button class="btn btn-primary" onclick="loginDeepSeek()">Login with DeepSeek</button>
-            <div class="form-group" style="margin-top:16px">
-              <label>Test model</label>
-              <input id="deepseek-test-model" type="text" value="deepseek-chat" />
-            </div>
-            <button class="btn btn-sm" onclick="testChat('deepseek')">Test</button>
           </div>
-
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-icon" style="background:var(--orange-bg)">Z</span> Z.ai (GLM)</div>
               <span id="glm-badge" class="badge badge-warn">Guest mode</span>
             </div>
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Paste your Z.ai JWT token (from chat.z.ai → DevTools → Local Storage → <code>token</code>). Leave empty for guest mode (glm-4.7 only).</p>
-            <div class="form-group">
-              <label>ZAI_TOKEN</label>
-              <textarea id="glm-token" placeholder="eyJhbGciOiJIUzI1NiIs..."></textarea>
-            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Paste JWT from chat.z.ai → DevTools → Local Storage → <code>token</code>. Empty = guest mode (glm-4.7 only).</p>
+            <div class="form-group"><textarea id="glm-token" placeholder="eyJhbGciOiJIUzI1NiIs..."></textarea></div>
             <button class="btn btn-primary" onclick="setGlmToken()">Save & Restart Daemon</button>
           </div>
-
           <div class="card">
             <div class="card-header">
               <div class="card-title"><span class="card-icon" style="background:var(--green-bg)">K</span> Kimi</div>
               <span id="kimi-badge" class="badge badge-down">Not configured</span>
             </div>
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Paste your Kimi JWT or refresh_token (from kimi.com → DevTools → cookies/localStorage).</p>
-            <div class="form-group">
-              <label>Token</label>
-              <textarea id="kimi-token" placeholder="eyJhbGciOiJIUzI1NiIs... or refresh_token"></textarea>
-            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Paste JWT or refresh_token from kimi.com.</p>
+            <div class="form-group"><textarea id="kimi-token" placeholder="eyJhbGciOiJIUzI1NiIs..."></textarea></div>
             <button class="btn btn-primary" onclick="setKimiToken()">Save Token</button>
           </div>
         </div>
       </div>
 
-      <!-- Models Page -->
+      <!-- Accounts -->
+      <div class="page" id="page-accounts">
+        <div class="h1">Accounts</div>
+        <div class="h2">All configured accounts across providers. Multi-account = automatic failover.</div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">All Accounts</div><button class="btn btn-sm" onclick="loadAccounts()">Refresh</button></div>
+          <div id="accounts-list"></div>
+        </div>
+      </div>
+
+      <!-- Models -->
       <div class="page" id="page-models">
         <div class="h1">Models</div>
-        <div class="h2">Add, remove, and customize models per provider. Changes appear in /v1/models immediately.</div>
-
-        <!-- Provider selector -->
+        <div class="h2">Add custom models, discover from daemons, map names to actual IDs. Changes appear in /v1/models immediately.</div>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">Select Provider</div>
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <select id="model-provider-select" onchange="loadProviderModels()">
-              <option value="">— Select a provider —</option>
-              <option value="qwen">Qwen</option>
-              <option value="qwen-ai">Qwen AI (International)</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="glm">Z.ai (GLM)</option>
-              <option value="zai">Z.ai</option>
-              <option value="kimi">Kimi</option>
-            </select>
-          </div>
+          <div class="card-header"><div class="card-title">Select Provider</div></div>
+          <select id="model-provider-select" onchange="loadProviderModels()">
+            <option value="">— Select a provider —</option>
+            <option value="qwen">Qwen</option>
+            <option value="qwen-ai">Qwen AI (International)</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="glm">Z.ai (GLM)</option>
+            <option value="zai">Z.ai</option>
+            <option value="kimi">Kimi</option>
+          </select>
         </div>
-
-        <!-- Active models for selected provider -->
         <div class="card" id="models-active-card" style="display:none">
           <div class="card-header">
-            <div class="card-title">Active Models <span id="models-count-badge" class="badge badge-up" style="margin-left:8px">0</span></div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm" onclick="fetchLiveModelsForProvider()" id="fetch-provider-btn">Fetch from Daemon</button>
-              <button class="btn btn-sm" onclick="resetModels()">Reset to Defaults</button>
+            <div class="card-title">Active Models <span id="models-count-badge" class="badge badge-info" style="margin-left:6px">0</span></div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="fetchLiveModelsForProvider()">Fetch from Daemon</button>
+              <button class="btn btn-sm" onclick="resetModels()">Reset</button>
             </div>
           </div>
           <div id="models-active-list"></div>
         </div>
-
-        <!-- Add custom model -->
         <div class="card" id="models-add-card" style="display:none">
-          <div class="card-header">
-            <div class="card-title">Add Custom Model</div>
-          </div>
-          <div class="form-group">
-            <label>Display Name <span style="color:var(--text-dim)">(what Qwen Code sees, e.g. qwen3.8-max)</span></label>
-            <input id="model-display-name" type="text" placeholder="my-model-name" />
-          </div>
-          <div class="form-group">
-            <label>Actual Model ID <span style="color:var(--text-dim)">(what the daemon uses, e.g. qwen3.8-max)</span></label>
-            <input id="model-actual-id" type="text" placeholder="qwen3.8-max" />
-          </div>
+          <div class="card-header"><div class="card-title">Add Custom Model</div></div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Set any display name and map it to any actual model ID. Useful when hardcoded models are outdated.</p>
+          <div class="form-group"><label>Display Name <span style="color:var(--text-dim)">(what Qwen Code sees)</span></label><input id="model-display-name" type="text" placeholder="my-model-name" /></div>
+          <div class="form-group"><label>Actual Model ID <span style="color:var(--text-dim)">(what the daemon uses)</span></label><input id="model-actual-id" type="text" placeholder="qwen3.8-max" /></div>
           <button class="btn btn-primary" onclick="addCustomModel()">Add Model</button>
         </div>
-
-        <!-- Discovered models (from daemon) -->
         <div class="card" id="models-discovered-card" style="display:none">
-          <div class="card-header">
-            <div class="card-title">Discovered from Daemon <span style="font-weight:400;color:var(--text-muted);font-size:13px">(not yet in your active list)</span></div>
-          </div>
+          <div class="card-header"><div class="card-title">Discovered from Daemon</div></div>
           <div id="models-discovered-list"></div>
         </div>
       </div>
 
-      <!-- Sessions Page -->
+      <!-- Sessions -->
       <div class="page" id="page-sessions">
         <div class="h1">Sessions & Throttles</div>
-        <div class="h2">Active session mappings and throttled accounts</div>
+        <div class="h2">Active session mappings (affinity) and throttled accounts</div>
         <div class="card">
-          <div class="card-header"><div class="card-title">Active Sessions (Session Affinity)</div></div>
+          <div class="card-header"><div class="card-title">Active Sessions</div></div>
           <div id="sessions-list"></div>
         </div>
         <div class="card">
@@ -378,39 +364,64 @@
         </div>
       </div>
 
-      <!-- Logs Page -->
+      <!-- Logs -->
       <div class="page" id="page-logs">
-        <div class="h1">Logs</div>
-        <div class="h2">Recent request logs from the proxy</div>
+        <div class="h1">Request Logs</div>
+        <div class="h2">Recent requests through the proxy</div>
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Request Logs</div>
-            <button class="btn btn-sm" onclick="loadLogs()">Refresh</button>
+            <div class="card-title">Recent Requests</div>
+            <div style="display:flex;gap:6px">
+              <select id="log-limit" onchange="loadLogs()" style="width:auto">
+                <option value="20">Last 20</option>
+                <option value="50" selected>Last 50</option>
+                <option value="100">Last 100</option>
+                <option value="200">Last 200</option>
+              </select>
+              <button class="btn btn-sm" onclick="loadLogs()">Refresh</button>
+            </div>
           </div>
           <div id="logs-list" style="max-height:600px;overflow-y:auto"></div>
         </div>
       </div>
 
-      <!-- Settings Page -->
+      <!-- Test Chat -->
+      <div class="page" id="page-test">
+        <div class="h1">Test Chat</div>
+        <div class="h2">Send a test message through any provider to verify it works</div>
+        <div class="card">
+          <div class="form-group"><label>Provider</label>
+            <select id="test-provider">
+              <option value="qwen">Qwen</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="glm">Z.ai (GLM)</option>
+              <option value="kimi">Kimi</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Model (optional)</label><input id="test-model" type="text" placeholder="default" /></div>
+          <div class="form-group"><label>Message</label><textarea id="test-message" placeholder="Say hello in one word.">Say hello in one word.</textarea></div>
+          <button class="btn btn-primary" onclick="testChatFromForm()">Send Test</button>
+        </div>
+        <div class="card" id="test-result-card" style="display:none">
+          <div class="card-header"><div class="card-title">Response</div></div>
+          <pre id="test-result" style="background:var(--bg-input);padding:10px;border-radius:5px;overflow-x:auto;font-size:12px;white-space:pre-wrap"></pre>
+        </div>
+      </div>
+
+      <!-- Settings -->
       <div class="page" id="page-settings">
         <div class="h1">Settings</div>
         <div class="h2">Proxy configuration</div>
         <div class="card">
           <div class="card-header"><div class="card-title">Proxy</div></div>
-          <div class="form-group">
-            <label>Proxy Port</label>
-            <input id="proxy-port" type="number" value="8080" />
-          </div>
-          <div class="form-group">
-            <label>Proxy Host</label>
-            <input id="proxy-host" type="text" value="127.0.0.1" />
-          </div>
+          <div class="form-group"><label>Proxy Port</label><input id="proxy-port" type="number" value="8080" /></div>
+          <div class="form-group"><label>Proxy Host</label><input id="proxy-host" type="text" value="127.0.0.1" /></div>
           <button class="btn btn-primary" onclick="saveProxySettings()">Save</button>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title">Qwen Code Configuration</div></div>
-          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Add this to your <code>~/.qwen/settings.json</code>:</p>
-          <pre style="background:var(--bg-input);padding:12px;border-radius:6px;overflow-x:auto;font-size:12px"><code>{
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Add this to your <code>~/.qwen/settings.json</code>:</p>
+<pre style="background:var(--bg-input);padding:10px;border-radius:5px;overflow-x:auto;font-size:11px"><code>{
   "modelProviders": {
     "chat2api-merged": [
       { "id": "qwen3-max",      "envKey": "C2A_KEY", "baseUrl": "http://localhost:8080/v1" },
@@ -433,19 +444,18 @@ const API = '/v0/management/dashboard';
 let notifs = [];
 let notifPanelOpen = false;
 
-// ─── Navigation ──────────────────────────────────────────────────────────
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
   if (page === 'overview') refreshAll();
+  if (page === 'accounts') loadAccounts();
   if (page === 'models') loadProviderModels();
   if (page === 'sessions') loadSessions();
   if (page === 'logs') loadLogs();
 }
 
-// ─── Toast ───────────────────────────────────────────────────────────────
 function toast(title, body, type = 'info', sticky = false) {
   const el = document.createElement('div');
   el.className = 'toast ' + type;
@@ -454,7 +464,6 @@ function toast(title, body, type = 'info', sticky = false) {
   if (!sticky) setTimeout(() => el.remove(), 10000);
 }
 
-// ─── API helper ──────────────────────────────────────────────────────────
 async function api(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
@@ -469,31 +478,27 @@ async function api(method, path, body) {
   }
 }
 
-// ─── Daemons ─────────────────────────────────────────────────────────────
+// ─── Overview ────────────────────────────────────────────────────────────
 async function loadDaemons() {
   try {
     const data = await api('GET', '/daemons');
     const list = document.getElementById('daemon-list');
-    if (!data.daemons || data.daemons.length === 0) {
-      list.innerHTML = '<div class="empty">No daemons configured</div>';
-      return;
-    }
+    if (!data.daemons || data.daemons.length === 0) { list.innerHTML = '<div class="empty">No daemons</div>'; return; }
+    const up = data.daemons.filter(d => d.healthy).length;
+    document.getElementById('stat-daemons').textContent = up + '/' + data.daemons.length;
     list.innerHTML = data.daemons.map(d => `
-      <div class="daemon-row">
-        <div class="daemon-info">
+      <div class="row">
+        <div class="row-info">
           <span class="status-dot ${d.healthy ? 'up' : 'down'}"></span>
           <div>
-            <div class="daemon-name">${d.name}</div>
-            <div class="daemon-port">:${d.port} — ${d.healthy ? 'UP' : (d.running ? 'starting...' : 'down')}</div>
-            ${d.detail ? `<div style="font-size:11px;color:var(--text-dim)">${d.detail}</div>` : ''}
+            <div class="row-name">${d.name}</div>
+            <div class="row-meta">:${d.port} — ${d.healthy ? 'UP' : (d.running ? 'starting...' : 'down')}</div>
+            ${d.detail ? `<div style="font-size:10px;color:var(--text-dim)">${d.detail}</div>` : ''}
           </div>
         </div>
         <button class="btn btn-sm" onclick="restartDaemon('${d.id}')">Restart</button>
-      </div>
-    `).join('');
-  } catch (err) {
-    document.getElementById('daemon-list').innerHTML = '<div class="empty">Failed to load daemons</div>';
-  }
+      </div>`).join('');
+  } catch (err) { document.getElementById('daemon-list').innerHTML = '<div class="empty">Failed</div>'; }
 }
 
 async function restartDaemon(id) {
@@ -503,62 +508,67 @@ async function restartDaemon(id) {
   loadDaemons();
 }
 
-// ─── Provider status ──────────────────────────────────────────────────────
 async function loadProviderStatus() {
   try {
     const data = await api('GET', '/providers/status');
-    const el = document.getElementById('provider-status');
     const p = data.providers;
+    document.getElementById('stat-providers').textContent =
+      Object.values(p).filter(x => x.configured).length + '/' + Object.keys(p).length;
+    const el = document.getElementById('provider-status');
     const row = (label, info) => `
-      <div class="daemon-row">
-        <div class="daemon-info">
+      <div class="row">
+        <div class="row-info">
           <span class="status-dot ${info.daemonUp ? 'up' : 'down'}"></span>
           <div>
-            <div class="daemon-name">${label}</div>
-            <div class="daemon-port">${info.configured ? 'Configured' : 'Not configured'}${info.accountCount ? ' • ' + info.accountCount + ' accounts' : ''}</div>
+            <div class="row-name">${label}</div>
+            <div class="row-meta">${info.configured ? 'Configured' : 'Not configured'}${info.accountCount ? ' • ' + info.accountCount + ' accounts' : ''}</div>
           </div>
         </div>
       </div>`;
     el.innerHTML = row('Qwen', p.qwen) + row('DeepSeek', p.deepseek) + row('Z.ai (GLM)', p.glm) + row('Kimi', p.kimi);
-
-    // Update badges on provider page
     const setBadge = (id, info, okText, noText) => {
       const badge = document.getElementById(id);
-      if (info.daemonUp && info.configured) {
-        badge.className = 'badge badge-up'; badge.textContent = okText;
-      } else if (info.daemonUp) {
-        badge.className = 'badge badge-warn'; badge.textContent = noText;
-      } else {
-        badge.className = 'badge badge-down'; badge.textContent = 'Daemon down';
-      }
+      if (info.daemonUp && info.configured) { badge.className = 'badge badge-up'; badge.textContent = okText; }
+      else if (info.daemonUp) { badge.className = 'badge badge-warn'; badge.textContent = noText; }
+      else { badge.className = 'badge badge-down'; badge.textContent = 'Daemon down'; }
     };
     setBadge('qwen-badge', p.qwen, `${p.qwen.accountCount} accounts`, 'No accounts');
     setBadge('deepseek-badge', p.deepseek, 'Session ready', 'No session');
     setBadge('glm-badge', p.glm, 'Token set', 'Guest mode');
     setBadge('kimi-badge', p.kimi, 'Token set', 'No token');
-
-    // Show Qwen accounts
     if (p.qwen.accounts && p.qwen.accounts.length > 0) {
-      const acctsEl = document.getElementById('qwen-accounts');
-      acctsEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Configured accounts:</div>' +
-        p.qwen.accounts.map(a => `
-          <div class="daemon-row" style="padding:8px 0">
-            <div class="daemon-info">
-              <span class="status-dot ${a.authenticated ? 'up' : 'down'}"></span>
-              <div>
-                <div class="daemon-name">${a.email}</div>
-                <div class="daemon-port">${a.throttled ? 'Throttled' : 'Active'}${a.totalRequests ? ' • ' + a.totalRequests + ' requests' : ''}</div>
-              </div>
-            </div>
-            <button class="btn btn-sm btn-danger" onclick="removeQwenAccount('${a.email}')">Remove</button>
-          </div>`).join('');
+      document.getElementById('qwen-accounts').innerHTML = p.qwen.accounts.map(a => `
+        <div class="row" style="padding:6px 0">
+          <div class="row-info">
+            <span class="status-dot ${a.authenticated ? 'up' : 'down'}"></span>
+            <div><div class="row-name">${a.email}</div><div class="row-meta">${a.throttled ? 'Throttled' : 'Active'}</div></div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="removeQwenAccount('${a.email}')">Remove</button>
+        </div>`).join('');
     }
-  } catch (err) {
-    document.getElementById('provider-status').innerHTML = '<div class="empty">Failed to load provider status</div>';
-  }
+  } catch (err) { document.getElementById('provider-status').innerHTML = '<div class="empty">Failed</div>'; }
 }
 
-// ─── Qwen accounts ──────────────────────────────────────────────────────
+// ─── Accounts page ───────────────────────────────────────────────────────
+async function loadAccounts() {
+  try {
+    const data = await api('GET', '/live-models'); // reuse to get daemon up status
+    // For now, show provider status as accounts
+    const ps = await api('GET', '/providers/status');
+    const el = document.getElementById('accounts-list');
+    const allAccounts = [];
+    if (ps.providers.qwen.accounts) {
+      ps.providers.qwen.accounts.forEach(a => allAccounts.push({ provider: 'Qwen', id: a.email, status: a.authenticated ? 'active' : 'inactive', throttled: a.throttled }));
+    }
+    if (ps.providers.deepseek.configured) allAccounts.push({ provider: 'DeepSeek', id: 'browser-session', status: 'active', throttled: false });
+    if (ps.providers.kimi.configured) allAccounts.push({ provider: 'Kimi', id: 'token', status: 'active', throttled: false });
+    if (allAccounts.length === 0) { el.innerHTML = '<div class="empty">No accounts configured. Add some in the Providers page.</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>Provider</th><th>Account</th><th>Status</th><th>Throttled</th></tr></thead><tbody>` +
+      allAccounts.map(a => `<tr><td>${a.provider}</td><td><code>${a.id}</code></td><td><span class="badge ${a.status === 'active' ? 'badge-up' : 'badge-down'}">${a.status}</span></td><td>${a.throttled ? '<span class="tag tag-throttled">throttled</span>' : '—'}</td></tr>`).join('') + `</tbody></table>`;
+  } catch (err) { document.getElementById('accounts-list').innerHTML = '<div class="empty">Failed</div>'; }
+}
+
+// ─── Providers ────────────────────────────────────────────────────────────
 async function addQwenAccount() {
   const email = document.getElementById('qwen-email').value.trim();
   const password = document.getElementById('qwen-password').value;
@@ -571,10 +581,8 @@ async function addQwenAccount() {
       document.getElementById('qwen-email').value = '';
       document.getElementById('qwen-password').value = '';
       loadProviderStatus();
-    } else {
-      toast('Login failed', data.loginError || 'Unknown error', 'error');
-    }
-  } catch (err) { /* toast shown by api() */ }
+    } else { toast('Login failed', data.loginError || 'Unknown error', 'error'); }
+  } catch (err) {}
 }
 
 async function removeQwenAccount(email) {
@@ -584,7 +592,6 @@ async function removeQwenAccount(email) {
   loadProviderStatus();
 }
 
-// ─── DeepSeek ────────────────────────────────────────────────────────────
 async function loginDeepSeek() {
   toast('Opening...', 'DeepSeek login window', 'info');
   try {
@@ -593,7 +600,6 @@ async function loginDeepSeek() {
   } catch (err) {}
 }
 
-// ─── GLM token ──────────────────────────────────────────────────────────
 async function setGlmToken() {
   const token = document.getElementById('glm-token').value.trim();
   if (!token) { toast('Error', 'Token required', 'error'); return; }
@@ -605,7 +611,6 @@ async function setGlmToken() {
   } catch (err) {}
 }
 
-// ─── Kimi token ──────────────────────────────────────────────────────────
 async function setKimiToken() {
   const token = document.getElementById('kimi-token').value.trim();
   if (!token) { toast('Error', 'Token required', 'error'); return; }
@@ -616,37 +621,26 @@ async function setKimiToken() {
   } catch (err) {}
 }
 
-// ─── Test chat ──────────────────────────────────────────────────────────
-async function testChat(provider) {
-  const model = document.getElementById(provider + '-test-model')?.value || undefined;
-  toast('Testing...', `${provider} - ${model || 'default'}`, 'info');
-  try {
-    const data = await api('POST', '/test-chat', { provider, model, message: 'Say hello in one word.' });
-    if (data.success) {
-      const reply = data.data?.choices?.[0]?.message?.content || JSON.stringify(data.data).slice(0, 100);
-      toast('Test OK', reply, 'success');
-    } else {
-      toast('Test failed', `HTTP ${data.status}`, 'error');
-    }
-  } catch (err) {}
-}
-
-// ─── Models page: full CRUD ──────────────────────────────────────────────
+// ─── Models ──────────────────────────────────────────────────────────────
 let currentModelProvider = '';
 let discoveredModels = [];
 
 async function loadProviderModels() {
   currentModelProvider = document.getElementById('model-provider-select').value;
   if (!currentModelProvider) {
-    ['models-active-card', 'models-add-card', 'models-discovered-card'].forEach(id => {
-      document.getElementById(id).style.display = 'none';
-    });
+    ['models-active-card', 'models-add-card', 'models-discovered-card'].forEach(id => { document.getElementById(id).style.display = 'none'; });
     return;
   }
   document.getElementById('models-active-card').style.display = 'block';
   document.getElementById('models-add-card').style.display = 'block';
   document.getElementById('models-discovered-card').style.display = 'block';
   await refreshActiveModels();
+  // Also update total models stat
+  try {
+    const resp = await fetch('/v1/models');
+    const data = await resp.json();
+    document.getElementById('stat-models').textContent = (data.data || []).length;
+  } catch {}
 }
 
 async function refreshActiveModels() {
@@ -656,31 +650,21 @@ async function refreshActiveModels() {
     const models = data.models || [];
     document.getElementById('models-count-badge').textContent = models.length;
     const el = document.getElementById('models-active-list');
-    if (models.length === 0) {
-      el.innerHTML = '<div class="empty">No models. Add one below or fetch from daemon.</div>';
-      return;
-    }
+    if (models.length === 0) { el.innerHTML = '<div class="empty">No models. Add one below or fetch from daemon.</div>'; return; }
     el.innerHTML = `<table><thead><tr><th>Display Name</th><th>Actual Model ID</th><th>Type</th><th style="text-align:right">Action</th></tr></thead><tbody>` +
       models.map(m => `<tr>
         <td><code>${m.displayName}</code></td>
         <td><code style="color:var(--text-muted)">${m.actualModelId}</code></td>
-        <td>${m.isCustom ? '<span class="badge badge-warn">Custom</span>' : '<span class="badge badge-up">Default</span>'}</td>
-        <td style="text-align:right">
-          <button class="btn btn-sm btn-danger" onclick="removeModel('${m.displayName}')">Remove</button>
-        </td>
+        <td>${m.isCustom ? '<span class="tag tag-custom">custom</span>' : '<span class="tag tag-default">default</span>'}</td>
+        <td style="text-align:right"><button class="btn btn-sm btn-danger" onclick="removeModel('${m.displayName}')">Remove</button></td>
       </tr>`).join('') + `</tbody></table>`;
-  } catch (err) {
-    document.getElementById('models-active-list').innerHTML = '<div class="empty">Failed to load models</div>';
-  }
+  } catch (err) { document.getElementById('models-active-list').innerHTML = '<div class="empty">Failed to load</div>'; }
 }
 
 async function addCustomModel() {
   const displayName = document.getElementById('model-display-name').value.trim();
   const actualModelId = document.getElementById('model-actual-id').value.trim();
-  if (!displayName || !actualModelId) {
-    toast('Error', 'Both fields required', 'error');
-    return;
-  }
+  if (!displayName || !actualModelId) { toast('Error', 'Both fields required', 'error'); return; }
   try {
     const data = await api('POST', `/models/${currentModelProvider}/add`, { displayName, actualModelId });
     if (data.success) {
@@ -688,31 +672,23 @@ async function addCustomModel() {
       document.getElementById('model-display-name').value = '';
       document.getElementById('model-actual-id').value = '';
       await refreshActiveModels();
-      // If this model was in discovered list, mark it as added
-      discoveredModels = discoveredModels.map(m => m.id === actualModelId || m.id === displayName ? { ...m, alreadyAdded: true } : m);
       renderDiscoveredModels();
-    } else {
-      toast('Failed', data.error, 'error');
-    }
+    } else { toast('Failed', data.error, 'error'); }
   } catch (err) {}
 }
 
 async function removeModel(modelName) {
   if (!confirm(`Remove model "${modelName}"?`)) return;
   try {
-    const data = await api('POST', `/models/${currentModelProvider}/remove`, { modelName });
-    if (data.success) {
-      toast('Removed', data.message, 'success');
-      await refreshActiveModels();
-      // If this model is in discovered list, unmark it
-      discoveredModels = discoveredModels.map(m => m.id === modelName ? { ...m, alreadyAdded: false } : m);
-      renderDiscoveredModels();
-    }
+    await api('POST', `/models/${currentModelProvider}/remove`, { modelName });
+    toast('Removed', modelName, 'success');
+    await refreshActiveModels();
+    renderDiscoveredModels();
   } catch (err) {}
 }
 
 async function resetModels() {
-  if (!confirm('Reset all models to defaults? Custom models will be removed.')) return;
+  if (!confirm('Reset all models to defaults?')) return;
   try {
     await api('POST', `/models/${currentModelProvider}/reset`);
     toast('Reset', 'Models restored to defaults', 'success');
@@ -722,103 +698,86 @@ async function resetModels() {
 }
 
 async function fetchLiveModelsForProvider() {
-  const btn = document.getElementById('fetch-provider-btn');
-  const oldHtml = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner"></span> Fetching...';
-  btn.disabled = true;
   try {
     const data = await api('GET', '/live-models/' + currentModelProvider);
     discoveredModels = data.models || [];
     renderDiscoveredModels();
-    if (discoveredModels.length === 0) {
-      toast('No models', data.error ? 'Daemon unreachable: ' + data.error : 'Daemon returned no models', 'warn');
-    } else {
-      toast('Fetched', `${discoveredModels.length} models from ${currentModelProvider} daemon`, 'success');
-    }
-  } catch (err) {
-    document.getElementById('models-discovered-list').innerHTML = '<div class="empty">Failed to fetch</div>';
-  } finally {
-    btn.innerHTML = oldHtml;
-    btn.disabled = false;
-  }
+    if (discoveredModels.length === 0) toast('No models', data.error || 'Daemon returned none', 'warn');
+    else toast('Fetched', `${discoveredModels.length} models from ${currentModelProvider}`, 'success');
+  } catch (err) { document.getElementById('models-discovered-list').innerHTML = '<div class="empty">Failed</div>'; }
 }
 
 function renderDiscoveredModels() {
   const el = document.getElementById('models-discovered-list');
-  // Also fetch the active list to know which are already added
+  if (discoveredModels.length === 0) { el.innerHTML = '<div class="empty">Click "Fetch from Daemon" to discover available models</div>'; return; }
   api('GET', '/models/' + currentModelProvider).then(data => {
     const activeIds = new Set((data.models || []).map(m => m.displayName));
-    if (discoveredModels.length === 0) {
-      el.innerHTML = '<div class="empty">Click "Fetch from Daemon" to discover available models</div>';
-      return;
-    }
     el.innerHTML = `<table><thead><tr><th>Model ID</th><th>Context</th><th>Status</th><th style="text-align:right">Action</th></tr></thead><tbody>` +
       discoveredModels.map(m => {
         const added = activeIds.has(m.id);
         return `<tr>
-          <td><code>${m.id}</code>${m.description ? `<div style="font-size:11px;color:var(--text-dim)">${m.description}</div>` : ''}</td>
-          <td style="font-size:12px;color:var(--text-muted)">${m.context_window ? (m.context_window/1000)+'K' : '—'}</td>
-          <td>${added ? '<span class="badge badge-up">Added</span>' : '<span class="badge badge-warn">Available</span>'}</td>
-          <td style="text-align:right">
-            ${added ? '<span style="color:var(--text-dim);font-size:12px">—</span>' :
-              `<button class="btn btn-sm btn-primary" onclick="quickAddModel('${m.id}')">Add</button>`}
-          </td>
+          <td><code>${m.id}</code>${m.description ? `<div style="font-size:10px;color:var(--text-dim)">${m.description}</div>` : ''}</td>
+          <td style="font-size:11px;color:var(--text-muted)">${m.context_window ? (m.context_window/1000)+'K' : '—'}</td>
+          <td>${added ? '<span class="tag tag-default">added</span>' : '<span class="tag tag-discovered">available</span>'}</td>
+          <td style="text-align:right">${added ? '<span style="color:var(--text-dim);font-size:11px">—</span>' : `<button class="btn btn-sm btn-primary" onclick="quickAddModel('${m.id}')">Add</button>`}</td>
         </tr>`;
       }).join('') + `</tbody></table>`;
-  }).catch(() => {
-    el.innerHTML = '<div class="empty">Failed to load active models</div>';
-  });
+  }).catch(() => { el.innerHTML = '<div class="empty">Failed</div>'; });
 }
 
 async function quickAddModel(modelId) {
   try {
-    const data = await api('POST', `/models/${currentModelProvider}/add`, {
-      displayName: modelId,
-      actualModelId: modelId,
-    });
-    if (data.success) {
-      toast('Added', `Model "${modelId}" added`, 'success');
-      await refreshActiveModels();
-      renderDiscoveredModels();
-    } else {
-      toast('Failed', data.error, 'error');
-    }
+    const data = await api('POST', `/models/${currentModelProvider}/add`, { displayName: modelId, actualModelId: modelId });
+    if (data.success) { toast('Added', `Model "${modelId}" added`, 'success'); await refreshActiveModels(); renderDiscoveredModels(); }
+    else toast('Failed', data.error, 'error');
   } catch (err) {}
 }
 
-// ─── Sessions & throttles ────────────────────────────────────────────────
+// ─── Sessions ───────────────────────────────────────────────────────────
 async function loadSessions() {
   try {
     const [sessData, thrData] = await Promise.all([api('GET', '/smart-switcher/sessions'), api('GET', '/smart-switcher/throttles')]);
     const sessEl = document.getElementById('sessions-list');
     if (sessData.sessions && sessData.sessions.length > 0) {
-      sessEl.innerHTML = `<table><thead><tr><th>Session Hash</th><th>Provider</th><th>Account</th><th>Model</th><th>Chat ID</th><th>Last Used</th></tr></thead><tbody>${sessData.sessions.map(s => `<tr><td><code>${s.sessionHash.slice(0,12)}…</code></td><td>${s.providerId}</td><td>${s.accountId.slice(0,8)}</td><td>${s.modelId}</td><td>${s.upstreamChatId ? s.upstreamChatId.slice(0,12) : '—'}</td><td>${new Date(s.lastUsed).toLocaleTimeString()}</td></tr>`).join('')}</tbody></table>`;
-    } else {
-      sessEl.innerHTML = '<div class="empty">No active sessions</div>';
-    }
+      sessEl.innerHTML = `<table><thead><tr><th>Session</th><th>Provider</th><th>Account</th><th>Model</th><th>Last Used</th></tr></thead><tbody>${sessData.sessions.map(s => `<tr><td><code>${s.sessionHash.slice(0,10)}…</code></td><td>${s.providerId}</td><td><code>${s.accountId.slice(0,8)}</code></td><td>${s.modelId}</td><td>${new Date(s.lastUsed).toLocaleTimeString()}</td></tr>`).join('')}</tbody></table>`;
+    } else sessEl.innerHTML = '<div class="empty">No active sessions</div>';
     const thrEl = document.getElementById('throttles-list');
     if (thrData.throttles && thrData.throttles.length > 0) {
-      thrEl.innerHTML = `<table><thead><tr><th>Account</th><th>Provider</th><th>Reason</th><th>Unlock at</th></tr></thead><tbody>${thrData.throttles.map(t => `<tr><td><code>${t.accountId.slice(0,12)}</code></td><td>${t.providerId}</td><td>${t.reason}</td><td>${t.throttledUntil ? new Date(t.throttledUntil).toLocaleTimeString() : '—'}</td></tr>`).join('')}</tbody></table>`;
-    } else {
-      thrEl.innerHTML = '<div class="empty">No throttled accounts</div>';
-    }
+      thrEl.innerHTML = `<table><thead><tr><th>Account</th><th>Provider</th><th>Reason</th><th>Unlock</th></tr></thead><tbody>${thrData.throttles.map(t => `<tr><td><code>${t.accountId.slice(0,10)}</code></td><td>${t.providerId}</td><td>${t.reason}</td><td>${t.throttledUntil ? new Date(t.throttledUntil).toLocaleTimeString() : '—'}</td></tr>`).join('')}</tbody></table>`;
+    } else thrEl.innerHTML = '<div class="empty">No throttled accounts</div>';
   } catch (err) {}
 }
 
 // ─── Logs ────────────────────────────────────────────────────────────────
 async function loadLogs() {
   try {
-    const resp = await fetch('/v0/management/logs?limit=50');
+    const limit = document.getElementById('log-limit')?.value || 50;
+    const resp = await fetch(`/v0/management/logs?limit=${limit}`);
     const data = await resp.json();
     const el = document.getElementById('logs-list');
     if (data.logs && data.logs.length > 0) {
-      el.innerHTML = data.logs.reverse().map(l => `<div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text-dim)">${new Date(l.timestamp).toLocaleTimeString()}</span> <span style="color:${l.level === 'error' ? 'var(--red)' : l.level === 'warn' ? 'var(--yellow)' : 'var(--blue)'}">[${l.level}]</span> ${l.message}</div>`).join('');
+      document.getElementById('stat-requests').textContent = data.logs.length;
+      el.innerHTML = data.logs.reverse().map(l => `<div class="log-entry"><span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span> <span class="log-level-${l.level}">[${l.level}]</span> <span class="log-msg">${l.message}</span></div>`).join('');
+    } else el.innerHTML = '<div class="empty">No logs yet</div>';
+  } catch (err) { document.getElementById('logs-list').innerHTML = '<div class="empty">Failed</div>'; }
+}
+
+// ─── Test Chat ───────────────────────────────────────────────────────────
+async function testChatFromForm() {
+  const provider = document.getElementById('test-provider').value;
+  const model = document.getElementById('test-model').value.trim() || undefined;
+  const message = document.getElementById('test-message').value.trim() || 'Say hello';
+  document.getElementById('test-result-card').style.display = 'block';
+  document.getElementById('test-result').textContent = 'Sending...';
+  try {
+    const data = await api('POST', '/test-chat', { provider, model, message });
+    if (data.success) {
+      const reply = data.data?.choices?.[0]?.message?.content || JSON.stringify(data.data, null, 2);
+      document.getElementById('test-result').textContent = reply;
     } else {
-      el.innerHTML = '<div class="empty">No logs</div>';
+      document.getElementById('test-result').textContent = `HTTP ${data.status}\n\n${JSON.stringify(data.data, null, 2)}`;
     }
-  } catch (err) {
-    document.getElementById('logs-list').innerHTML = '<div class="empty">Failed to load logs</div>';
-  }
+  } catch (err) { document.getElementById('test-result').textContent = 'Error: ' + err.message; }
 }
 
 // ─── Notifications ───────────────────────────────────────────────────────
@@ -826,131 +785,58 @@ async function loadNotifs() {
   try {
     const data = await api('GET', '/notifications');
     notifs = data.notifications || [];
-    updateBell();
-    renderNotifPanel();
-    renderCaptchaBanner();
+    updateBell(); renderNotifPanel(); renderCaptchaBanner();
   } catch (err) {}
 }
-
 function updateBell() {
-  const undismissed = notifs.filter(n => !n.dismissed);
+  const u = notifs.filter(n => !n.dismissed);
   const badge = document.getElementById('bell-badge');
-  if (undismissed.length > 0) {
-    badge.style.display = 'flex';
-    badge.textContent = undismissed.length > 99 ? '99+' : undismissed.length;
-  } else {
-    badge.style.display = 'none';
-  }
+  if (u.length > 0) { badge.style.display = 'flex'; badge.textContent = u.length > 99 ? '99+' : u.length; }
+  else badge.style.display = 'none';
 }
-
 function renderNotifPanel() {
   const el = document.getElementById('notif-list');
-  if (notifs.length === 0) {
-    el.innerHTML = '<div class="empty">No notifications</div>';
-    return;
-  }
+  if (notifs.length === 0) { el.innerHTML = '<div class="empty">No notifications</div>'; return; }
   el.innerHTML = notifs.slice(0, 30).map(n => {
     const colors = { info: 'var(--blue)', warn: 'var(--yellow)', error: 'var(--red)', captcha: 'var(--orange)' };
-    const icons = { info: 'ℹ', warn: '⚠', error: '✗', captcha: '🛡' };
-    return `<div class="notif-item">
-      <div class="notif-icon" style="color:${colors[n.severity]};font-size:16px">${icons[n.severity]}</div>
-      <div class="notif-content">
-        <div class="notif-title">${n.title}</div>
-        <div class="notif-body">${n.body || ''}</div>
-        <div class="notif-time">${new Date(n.timestamp).toLocaleString()}</div>
-      </div>
-      ${!n.dismissed ? `<button class="btn btn-sm" onclick="dismissNotif('${n.id}')">Dismiss</button>` : ''}
-    </div>`;
+    const icons = { info: 'i', warn: '!', error: 'x', captcha: '#' };
+    return `<div class="notif-item"><div class="notif-icon" style="color:${colors[n.severity]}">${icons[n.severity]}</div><div class="notif-content"><div class="notif-title">${n.title}</div><div class="notif-body">${n.body || ''}</div><div class="notif-time">${new Date(n.timestamp).toLocaleString()}</div></div>${!n.dismissed ? `<button class="btn btn-sm" onclick="dismissNotif('${n.id}')">Dismiss</button>` : ''}</div>`;
   }).join('');
 }
-
-function toggleNotifPanel() {
-  notifPanelOpen = !notifPanelOpen;
-  document.getElementById('notif-panel').classList.toggle('open', notifPanelOpen);
-}
-
-async function dismissNotif(id) {
-  await api('POST', '/notifications/dismiss', { id });
-  notifs = notifs.map(n => n.id === id ? { ...n, dismissed: true } : n);
-  updateBell(); renderNotifPanel(); renderCaptchaBanner();
-}
-
-async function dismissAllNotifs() {
-  await api('POST', '/notifications/dismiss-all');
-  notifs = notifs.map(n => ({ ...n, dismissed: true }));
-  updateBell(); renderNotifPanel(); renderCaptchaBanner();
-}
-
+function toggleNotifPanel() { notifPanelOpen = !notifPanelOpen; document.getElementById('notif-panel').classList.toggle('open', notifPanelOpen); }
+async function dismissNotif(id) { await api('POST', '/notifications/dismiss', { id }); notifs = notifs.map(n => n.id === id ? { ...n, dismissed: true } : n); updateBell(); renderNotifPanel(); renderCaptchaBanner(); }
+async function dismissAllNotifs() { await api('POST', '/notifications/dismiss-all'); notifs = notifs.map(n => ({ ...n, dismissed: true })); updateBell(); renderNotifPanel(); renderCaptchaBanner(); }
 function renderCaptchaBanner() {
-  const captchaNotifs = notifs.filter(n => n.severity === 'captcha' && !n.dismissed);
+  const c = notifs.filter(n => n.severity === 'captcha' && !n.dismissed);
   const el = document.getElementById('captcha-banner-container');
-  if (captchaNotifs.length === 0) {
-    el.innerHTML = '';
-    return;
-  }
-  el.innerHTML = captchaNotifs.map(n => `
-    <div class="captcha-banner">
-      <div class="captcha-banner-icon">🛡</div>
-      <div class="captcha-banner-text">
-        <strong>CAPTCHA Required — ${n.providerId || 'Unknown provider'}</strong><br>
-        ${n.body || 'Automated recovery failed. Solve the CAPTCHA manually, then click Retry.'}
-      </div>
-      <div class="captcha-banner-actions">
-        <button class="btn btn-sm" onclick="solveCaptcha('${n.providerId}')">Open Login</button>
-        <button class="btn btn-sm btn-primary" onclick="retryRecovery('${n.providerId}','${n.accountId || ''}')">I've solved it — Retry</button>
-      </div>
-    </div>`).join('');
+  if (c.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = c.map(n => `<div class="captcha-banner"><div style="font-size:18px">#</div><div style="flex:1;font-size:13px"><strong>CAPTCHA Required — ${n.providerId || 'Unknown'}</strong><br>${n.body || 'Solve manually, then click Retry.'}</div><div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="solveCaptcha('${n.providerId}')">Open Login</button><button class="btn btn-sm btn-primary" onclick="retryRecovery('${n.providerId}','${n.accountId || ''}')">Retry</button></div></div>`).join('');
 }
+async function solveCaptcha(providerId) { try { const data = await api('POST', '/notifications/solve-captcha', { providerId }); if (data.url) { window.open(data.url, '_blank'); toast('Opened', 'Login page in new tab', 'info'); } } catch (err) {} }
+async function retryRecovery(providerId, accountId) { toast('Retrying...', `Recovery for ${providerId}`, 'info'); try { const data = await api('POST', '/notifications/recovery', { providerId, accountId: accountId || undefined }); toast(data.success ? 'Recovered' : 'Still failing', data.result?.method || data.result?.detail, data.success ? 'success' : 'error'); loadNotifs(); } catch (err) {} }
 
-async function solveCaptcha(providerId) {
-  try {
-    const data = await api('POST', '/notifications/solve-captcha', { providerId });
-    if (data.url) {
-      window.open(data.url, '_blank');
-      toast('Opened', 'Login page opened in new tab', 'info');
-    }
-  } catch (err) {}
-}
-
-async function retryRecovery(providerId, accountId) {
-  toast('Retrying...', `Recovery for ${providerId}`, 'info');
-  try {
-    const data = await api('POST', '/notifications/recovery', { providerId, accountId: accountId || undefined });
-    toast(data.success ? 'Recovered' : 'Still failing', data.result?.method || data.result?.detail, data.success ? 'success' : 'error');
-    loadNotifs();
-  } catch (err) {}
-}
-
-// ─── Proxy status ────────────────────────────────────────────────────────
+// ─── Proxy status + settings ─────────────────────────────────────────────
 async function loadProxyStatus() {
   try {
     const resp = await fetch('/health');
     const data = await resp.json();
     const el = document.getElementById('proxy-status');
-    const info = document.getElementById('proxy-info');
-    if (data.status === 'running') {
-      el.innerHTML = '<span class="status-dot up"></span> Proxy: Running';
-      el.className = 'badge badge-up';
-    } else {
-      el.innerHTML = '<span class="status-dot down"></span> Proxy: Stopped';
-      el.className = 'badge badge-down';
-    }
-    if (info) {
-      info.innerHTML = `<div class="daemon-row"><div class="daemon-info"><div><div class="daemon-name">Koa Proxy Server</div><div class="daemon-port">:8080 — OpenAI-compatible endpoint at <code>/v1/chat/completions</code></div></div></div></div>`;
-    }
-  } catch (err) {
-    document.getElementById('proxy-status').innerHTML = '<span class="status-dot down"></span> Proxy: Down';
-  }
+    if (data.status === 'running') { el.innerHTML = '<span class="status-dot up"></span> Proxy: Running'; el.className = 'badge badge-up'; }
+    else { el.innerHTML = '<span class="status-dot down"></span> Proxy: Stopped'; el.className = 'badge badge-down'; }
+    if (data.statistics) document.getElementById('stat-requests').textContent = data.statistics.totalRequests || 0;
+  } catch (err) { document.getElementById('proxy-status').innerHTML = '<span class="status-dot down"></span> Proxy: Down'; }
+}
+
+async function saveProxySettings() {
+  const port = parseInt(document.getElementById('proxy-port').value);
+  const host = document.getElementById('proxy-host').value;
+  try { await api('PUT', '/config', { proxyPort: port, proxyHost: host }); toast('Saved', 'Restart to apply', 'success'); } catch (err) {}
 }
 
 // ─── Refresh ─────────────────────────────────────────────────────────────
-async function refreshAll() {
-  await Promise.allSettled([loadDaemons(), loadProviderStatus(), loadProxyStatus(), loadNotifs()]);
-}
-
-// ─── Init ────────────────────────────────────────────────────────────────
+async function refreshAll() { await Promise.allSettled([loadDaemons(), loadProviderStatus(), loadProxyStatus(), loadNotifs()]); }
 refreshAll();
-setInterval(refreshAll, 5000); // auto-refresh every 5s
+setInterval(refreshAll, 5000);
 </script>
 </body>
 </html>

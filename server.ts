@@ -1,5 +1,5 @@
 /**
- * server.ts — standalone proxy server entry point (no Electron required).
+ * server.ts — standalone proxy server entry point.
  *
  * Boots the Koa proxy server on :8080, auto-installs deps on first run,
  * and starts the daemon supervisor. The web dashboard is then available
@@ -9,18 +9,6 @@
  *   bun server.ts
  *   bun run.ts server   (boots daemons + this server)
  */
-
-// ─── Patch electron BEFORE any other imports ────────────────────────────────
-// bun install restores the real electron package which breaks headless mode.
-// This overwrites node_modules/electron/index.js with our shim so `import
-// { net, app, safeStorage } from 'electron'` resolves to stubs.
-const { spawnSync } = require('node:child_process')
-const { existsSync: _existsSync } = require('node:fs')
-const { join: _join } = require('node:path')
-const _patchScript = _join(process.cwd(), 'scripts', 'patch-electron.js')
-if (_existsSync(_patchScript)) {
-  try { spawnSync('node', [_patchScript], { stdio: 'pipe', shell: process.platform === 'win32' }) } catch {}
-}
 
 import { ProxyServer } from './src/main/proxy/server'
 import { daemonSupervisor, ensureInstalled } from './src/main/supervisor'

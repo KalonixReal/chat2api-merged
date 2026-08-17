@@ -1,4 +1,4 @@
-import { net } from 'electron'
+import axios from 'axios'
 import { Readable } from 'stream'
 import { Account, Provider } from '../store/types'
 
