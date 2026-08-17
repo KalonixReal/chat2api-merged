@@ -21,13 +21,13 @@ router.get('/models', async (ctx: Context) => {
   const addedModels = new Set<string>()
 
   for (const provider of providers) {
-    const accounts = storeManager.getAccountsByProviderId(provider.id)
-      .filter(account => account.status === 'active')
-
-    if (accounts.length === 0) {
-      continue
-    }
-
+    // Show ALL models for enabled providers, even without accounts configured.
+    // Previously this skipped providers with no active accounts, which meant
+    // the user couldn't see their custom models until they added an account.
+    // Now: models appear in /v1/models as soon as they're added via the
+    // dashboard. If no account is configured, the request will fail with a
+    // clear error — but the model still shows up in the list so the user
+    // knows it's available.
     const effectiveModels = storeManager.getEffectiveModels(provider.id)
     for (const model of effectiveModels) {
       if (!addedModels.has(model.displayName)) {

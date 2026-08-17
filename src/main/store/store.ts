@@ -319,6 +319,27 @@ class StoreManager {
     const providers = this.store?.get('providers') || []
     const builtinIds = BUILTIN_PROVIDERS.map(p => p.id)
     
+    // Add any missing builtin providers (first run or new providers added upstream)
+    const existingIds = new Set(providers.map((p: Provider) => p.id))
+    const missingBuiltinProviders = BUILTIN_PROVIDERS
+      .filter(bp => !existingIds.has(bp.id))
+      .map(bp => ({
+        id: bp.id,
+        name: bp.name,
+        type: 'builtin' as const,
+        authType: bp.authType,
+        apiEndpoint: bp.apiEndpoint,
+        chatPath: bp.chatPath,
+        headers: bp.headers || {},
+        enabled: bp.enabled !== false,
+        supportedModels: bp.supportedModels || [],
+        modelMappings: bp.modelMappings || {},
+        credentialFields: bp.credentialFields || [],
+        description: bp.description || '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }))
+    
     const validProviders = providers.filter((p: Provider) => {
       if (p.type === 'builtin') {
         return builtinIds.includes(p.id)
@@ -326,12 +347,15 @@ class StoreManager {
       return true
     })
     
+    // Merge existing + missing builtin providers
+    const allProviders = [...validProviders, ...missingBuiltinProviders]
+    
     const userModelOverrides: UserModelOverrides = {
       ...(this.store?.get('userModelOverrides') || {}),
     }
     let userModelOverridesChanged = false
     
-    const updatedProviders = validProviders.map((p: Provider) => {
+    const updatedProviders = allProviders.map((p: Provider) => {
       if (p.type === 'builtin') {
         const builtinConfig = BUILTIN_PROVIDERS.find(bp => bp.id === p.id)
         if (builtinConfig) {

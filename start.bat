@@ -1,10 +1,8 @@
 @echo off
 REM chat2api-merged — Windows double-click launcher
 REM
-REM Just double-click this file. It will:
-REM   1. Check bun is installed (if not, shows install instructions)
-REM   2. Run bun run.ts (which auto-installs deps on first run, boots daemons,
-REM      and launches the Electron app dashboard)
+REM Runs the web dashboard server (no Electron). After it boots, open
+REM http://localhost:8080/dashboard in your browser.
 REM
 REM No PowerShell, no WSL, no git bash required.
 
@@ -29,8 +27,8 @@ if errorlevel 1 (
 REM Get the directory of this batch file
 cd /d "%~dp0"
 
-REM Run the Windows launcher
-bun run.ts
+REM Run the web dashboard server (no Electron)
+bun run.ts server
 
 REM If something failed, keep the window open so the user can read the error
 if errorlevel 1 (

@@ -404,4 +404,104 @@ router.get('/smart-switcher/throttles', async (ctx: Context) => {
   }
 })
 
+// ─── Model management (CRUD) ────────────────────────────────────────────────
+// These let the dashboard add/remove/customize models per provider. The proxy's
+// /v1/models endpoint returns these effective models, so any model added here
+// immediately appears to Qwen Code / curl / any OpenAI client.
+
+router.get('/models/:providerId', async (ctx: Context) => {
+  try {
+    const providerId = ctx.params.providerId
+    const models = storeManager.getEffectiveModels(providerId)
+    ctx.body = { success: true, models }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+router.post('/models/:providerId/add', async (ctx: Context) => {
+  try {
+    const providerId = ctx.params.providerId
+    const { displayName, actualModelId } = ctx.request.body as {
+      displayName: string
+      actualModelId: string
+    }
+    if (!displayName || !actualModelId) {
+      ctx.status = 400
+      ctx.body = { success: false, error: 'displayName and actualModelId are required' }
+      return
+    }
+    const models = storeManager.addCustomModel(providerId, { displayName, actualModelId })
+    ctx.body = { success: true, models, message: `Added model "${displayName}" → "${actualModelId}"` }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+router.post('/models/:providerId/remove', async (ctx: Context) => {
+  try {
+    const providerId = ctx.params.providerId
+    const { modelName } = ctx.request.body as { modelName: string }
+    if (!modelName) {
+      ctx.status = 400
+      ctx.body = { success: false, error: 'modelName is required' }
+      return
+    }
+    const models = storeManager.removeModel(providerId, modelName)
+    ctx.body = { success: true, models, message: `Removed model "${modelName}"` }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+router.post('/models/:providerId/reset', async (ctx: Context) => {
+  try {
+    const providerId = ctx.params.providerId
+    const models = storeManager.resetModels(providerId)
+    ctx.body = { success: true, models, message: 'Models reset to defaults' }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+// ─── Config (proxy settings) ────────────────────────────────────────────────
+
+router.get('/config', async (ctx: Context) => {
+  try {
+    const config = storeManager.getConfig()
+    ctx.body = {
+      success: true,
+      config: {
+        proxyPort: config.proxyPort,
+        proxyHost: config.proxyHost,
+        proxyEnabled: config.proxyEnabled,
+      },
+    }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+router.put('/config', async (ctx: Context) => {
+  try {
+    const { proxyPort, proxyHost } = ctx.request.body as {
+      proxyPort?: number
+      proxyHost?: string
+    }
+    const config = storeManager.getConfig()
+    if (proxyPort !== undefined) config.proxyPort = proxyPort
+    if (proxyHost !== undefined) config.proxyHost = proxyHost
+    storeManager.updateConfig(config)
+    ctx.body = { success: true, message: 'Settings saved. Restart the proxy to apply.' }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
 export default router
