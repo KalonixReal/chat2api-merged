@@ -19,7 +19,7 @@ import { registerSupervisorHandlers } from './supervisor'
 import { registerProviderSetupHandlers } from './providerSetup'
 import { registerNotificationHandlers } from './notifications'
 import { notificationManager } from '../notifications/NotificationManager'
-import { daemonSupervisor } from '../supervisor'
+import { daemonSupervisor, ensureInstalled } from '../supervisor'
 import { DeepSeekAdapter } from '../proxy/adapters/deepseek'
 import { GLMAdapter } from '../proxy/adapters/glm'
 import { KimiAdapter } from '../proxy/adapters/kimi'
@@ -128,7 +128,6 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
     // The switcher may not exist yet; this is fire-and-forget so we don't block
     // app startup waiting for a module that may not be on disk.
     void notificationManager.subscribeToSmartSwitcher()
-    const { ensureInstalled } = await import('../supervisor/autoBootstrap')
     await ensureInstalled()
     await daemonSupervisor.startAll()
   } catch (error) {
@@ -571,6 +570,55 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
         error: error instanceof Error ? error.message : 'Failed to reset models',
         models: [],
       }
+    }
+  })
+
+  // ─── Live model fetching ───────────────────────────────────────────────
+  // Fetches the actual model list from the daemon's /v1/models endpoint.
+  // This returns models the daemon can REALLY serve right now (e.g. qwen3.8-max
+  // from qwengate), which may be newer than the hardcoded supportedModels list.
+  ipcMain.handle(IpcChannels.PROVIDERS_FETCH_LIVE_MODELS, async (_, providerId: string) => {
+    try {
+      const { fetchLiveModels } = await import('../proxy/liveModelFetcher')
+      return await fetchLiveModels(providerId)
+    } catch (error) {
+      console.error('[IPC] Failed to fetch live models:', error)
+      return { providerId, models: [], fetchedAt: Date.now(), error: String(error) }
+    }
+  })
+
+  ipcMain.handle(IpcChannels.PROVIDERS_FETCH_ALL_LIVE_MODELS, async () => {
+    try {
+      const { fetchAllLiveModels } = await import('../proxy/liveModelFetcher')
+      return await fetchAllLiveModels()
+    } catch (error) {
+      console.error('[IPC] Failed to fetch all live models:', error)
+      return []
+    }
+  })
+
+  // Merge live daemon models with the hardcoded list + user's custom models.
+  // Returns a unified list showing each model's source (hardcoded / live-discovered / custom).
+  ipcMain.handle(IpcChannels.PROVIDERS_MERGE_LIVE_MODELS, async (_, providerId: string) => {
+    try {
+      const { fetchLiveModels, mergeModels } = await import('../proxy/liveModelFetcher')
+      const effective = storeManager.getEffectiveModels(providerId)
+      const hardcoded = effective.map((m) => m.displayName)
+      const liveResult = await fetchLiveModels(providerId)
+      const merged = mergeModels(hardcoded, liveResult.models)
+      // Tag with isCustom + actualModelId from the effective list
+      return merged.map((m) => {
+        const eff = effective.find((e) => e.displayName === m.id || e.actualModelId === m.id)
+        return {
+          ...m,
+          actualModelId: eff?.actualModelId || m.id,
+          isCustom: eff?.isCustom || false,
+          alreadyAdded: !!eff,
+        }
+      })
+    } catch (error) {
+      console.error('[IPC] Failed to merge live models:', error)
+      return []
     }
   })
 
