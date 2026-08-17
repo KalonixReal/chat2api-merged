@@ -87,7 +87,9 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     healthPath: '/v1/models',
     // Use the venv python — never the system python, so we don't pollute the
     // user's global env. On Windows, venv python lives at .venv/Scripts/python.exe.
-    startCommand: ['.venv/Scripts/python.exe', 'app.py'],
+    // app_windows.py imports the FastAPI app object directly (avoids uvicorn's
+    // string-import resolution which fails on Windows with shell:true spawn).
+    startCommand: ['.venv/Scripts/python.exe', 'app_windows.py'],
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
     required: true,
@@ -109,7 +111,9 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     name: 'Kimi-Free-API',
     port: 5566,
     healthPath: '/v1/models',
-    startCommand: ['bun', 'run', 'dev'],
+    // Use 'start' (node dist/index.js) — dist/ is committed, no build needed.
+    // 'dev' uses tsup --watch which is slow on Windows.
+    startCommand: ['bun', 'run', 'start'],
     cwd: 'vendor/kimi-free-api',
     env: {},
     required: true,
@@ -289,8 +293,17 @@ export class DaemonSupervisor {
       entry.logFd = logFd
 
       const childEnv = { ...process.env, ...spec.env } as NodeJS.ProcessEnv
+      // On Windows, normalize the executable path to backslashes so cmd.exe
+      // (used when shell:true) can resolve relative paths like
+      // .venv\Scripts\python.exe. Forward slashes work in Node's spawn
+      // without shell, but with shell:true cmd.exe handles them poorly.
+      const isWin = process.platform === 'win32'
+      const cmd0 = isWin ? spec.startCommand[0].replace(/\//g, '\\') : spec.startCommand[0]
+      const cmdRest = isWin
+        ? spec.startCommand.slice(1).map((a) => a.replace(/\//g, '\\'))
+        : spec.startCommand.slice(1)
       // shell:true on Windows so bun.exe / python.exe / zai-api.exe resolve via PATHEXT
-      const child = spawn(spec.startCommand[0], spec.startCommand.slice(1), {
+      const child = spawn(cmd0, cmdRest, {
         cwd,
         env: childEnv,
         stdio: ['ignore', logFd, logFd],

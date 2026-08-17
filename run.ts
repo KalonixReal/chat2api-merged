@@ -127,6 +127,35 @@ async function runInstall(): Promise<void> {
   } else {
     log(c('green', '  ✓ deps already installed'))
   }
+  // Always verify Playwright is installed in the Python venv (deepseek-api
+  // imports playwright at module load — if missing, the daemon crashes on boot).
+  // Idempotent: if already installed, this is a fast no-op.
+  const playwrightCheck = spawnSync(venvPip, ['show', 'playwright'], { stdio: 'pipe', encoding: 'utf-8' })
+  if (playwrightCheck.status !== 0 || !playwrightCheck.stdout?.includes('Name: playwright')) {
+    log(c('yellow', '  → installing playwright for python venv...'))
+    spawnSync(venvPip, ['install', '-q', 'playwright'], { stdio: 'pipe' })
+    log(c('green', '  ✓ playwright installed'))
+  } else {
+    log(c('green', '  ✓ playwright already installed'))
+  }
+  // Verify Playwright Chromium browser is installed for the Python venv
+  // (separate from Node's Playwright — they don't share browser binaries).
+  const pwBrowserPath = join(process.env.USERPROFILE || '', 'AppData', 'Local', 'ms-playwright')
+  let pyHasChromium = false
+  try {
+    if (existsSync(pwBrowserPath)) {
+      const entries = readdirSync(pwBrowserPath)
+      pyHasChromium = entries.some((e) => e.startsWith('chromium'))
+    }
+  } catch {}
+  if (!pyHasChromium) {
+    log(c('yellow', '  → installing playwright chromium for python...'))
+    const pwExe = join(dsDir, '.venv', 'Scripts', 'playwright.exe')
+    spawnSync(pwExe, ['install', 'chromium'], { stdio: 'pipe', shell: true })
+    log(c('green', '  ✓ playwright chromium installed'))
+  } else {
+    log(c('green', '  ✓ playwright chromium already present'))
+  }
 
   // 3. TS daemons: bun install
   log(c('blue', '\n=== 3/4 TypeScript daemons — bun install ==='))
@@ -204,7 +233,9 @@ const DAEMONS: DaemonConfig[] = [
     healthPath: '/v1/models',
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
-    command: ['.venv/Scripts/python.exe', 'app.py'],
+    // app_windows.py imports the FastAPI app object directly (avoids uvicorn
+    // string-import resolution which fails on Windows).
+    command: ['.venv/Scripts/python.exe', 'app_windows.py'],
   },
   {
     id: 'glm-free-api',
@@ -221,7 +252,10 @@ const DAEMONS: DaemonConfig[] = [
     healthPath: '/v1/models',
     cwd: 'vendor/kimi-free-api',
     env: {},
-    command: ['bun', 'run', 'dev'],
+    // Use 'start' (node dist/index.js) instead of 'dev' (tsup --watch).
+    // The dist/ folder is committed so no build needed, and 'dev' mode is
+    // slow on Windows due to tsup watch + esbuild service overhead.
+    command: ['bun', 'run', 'start'],
   },
 ]
 
@@ -237,8 +271,14 @@ async function startDaemon(cfg: DaemonConfig): Promise<boolean> {
   const logPath = join(LOG_DIR, `${cfg.id}.log`)
   const logFd = openSync(logPath, 'a')
   const childEnv = { ...process.env, ...cfg.env } as NodeJS.ProcessEnv
-  // On Windows, shell:true is needed so bun.exe / python.exe resolve via PATHEXT
-  const child = spawn(cfg.command[0], cfg.command.slice(1), {
+  // On Windows, normalize paths to backslashes so cmd.exe (shell:true) resolves
+  // relative paths like .venv\Scripts\python.exe correctly.
+  const isWin = process.platform === 'win32'
+  const cmd0 = isWin ? cfg.command[0].replace(/\//g, '\\') : cfg.command[0]
+  const cmdRest = isWin
+    ? cfg.command.slice(1).map((a) => a.replace(/\//g, '\\'))
+    : cfg.command.slice(1)
+  const child = spawn(cmd0, cmdRest, {
     cwd,
     env: childEnv,
     stdio: ['ignore', logFd, logFd],

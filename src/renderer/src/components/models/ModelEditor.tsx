@@ -24,11 +24,23 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useProvidersStore } from '@/stores/providersStore'
 import type { EffectiveModel } from '@/types/electron'
-import { Plus, Trash2, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react'
+import { Plus, Trash2, RotateCcw, AlertTriangle, Loader2, Download, Zap } from 'lucide-react'
+
+interface DiscoveredModel {
+  id: string
+  inHardcoded: boolean
+  live: boolean
+  alreadyAdded: boolean
+  isCustom: boolean
+  actualModelId: string
+  contextWindow?: number
+  description?: string
+}
 
 interface ModelEditorProps {
   open: boolean
@@ -55,12 +67,75 @@ export function ModelEditor({
   const [isAdding, setIsAdding] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [deletingModel, setDeletingModel] = useState<string | null>(null)
+  const [discoveredModels, setDiscoveredModels] = useState<DiscoveredModel[]>([])
+  const [isDiscovering, setIsDiscovering] = useState(false)
+  const [addingDiscovered, setAddingDiscovered] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       loadModels()
     }
   }, [open, providerId])
+
+  const discoverFromDaemon = async () => {
+    setIsDiscovering(true)
+    try {
+      const result = await window.electronAPI.providers.mergeLiveModels(providerId)
+      if (Array.isArray(result)) {
+        setDiscoveredModels(result)
+        const discovered = result.filter((m) => m.live && !m.alreadyAdded)
+        if (discovered.length === 0) {
+          toast({
+            title: t('common.info'),
+            description: 'No new models discovered from daemon — all live models are already in your list.',
+          })
+        } else {
+          toast({
+            title: t('common.success'),
+            description: `Discovered ${discovered.length} new model(s) from the daemon.`,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to discover models:', error)
+      toast({
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : 'Failed to fetch live models from daemon',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDiscovering(false)
+    }
+  }
+
+  const addDiscoveredModel = async (modelId: string) => {
+    setAddingDiscovered(modelId)
+    try {
+      const result = await window.electronAPI.providers.addCustomModel(providerId, {
+        displayName: modelId,
+        actualModelId: modelId,
+      })
+      if (result.success) {
+        setModels(result.models)
+        setDiscoveredModels((prev) => prev.map((m) => m.id === modelId ? { ...m, alreadyAdded: true, isCustom: true } : m))
+        setModelsLastUpdated(Date.now())
+        toast({
+          title: t('common.success'),
+          description: `Added model "${modelId}"`,
+        })
+      } else {
+        throw new Error(result.error || 'Failed to add model')
+      }
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: error instanceof Error ? error.message : 'Failed to add model',
+        variant: 'destructive',
+      })
+    } finally {
+      setAddingDiscovered(null)
+    }
+  }
 
   const loadModels = async () => {
     setIsLoading(true)
@@ -289,6 +364,93 @@ export function ModelEditor({
               <div>
                 <h3 className="text-lg font-semibold mb-3">{t('modelEditor.customModels')}</h3>
                 {renderModelTable(customModels, true)}
+              </div>
+
+              {/* Live model discovery — fetches actual models from the daemon's /v1/models */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-orange-500" />
+                    Discovered from Daemon
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={discoverFromDaemon}
+                    disabled={isDiscovering}
+                  >
+                    {isDiscovering ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Fetch from Daemon
+                  </Button>
+                </div>
+                {discoveredModels.length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Model ID</TableHead>
+                          <TableHead className="w-32">Context</TableHead>
+                          <TableHead className="w-24">Status</TableHead>
+                          <TableHead className="w-24 text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {discoveredModels.map((m) => {
+                          const newDiscovered = m.live && !m.alreadyAdded
+                          return (
+                            <TableRow key={m.id} className={newDiscovered ? 'bg-orange-50/50 dark:bg-orange-950/20' : ''}>
+                              <TableCell>
+                                <code className="text-sm font-mono">{m.id}</code>
+                                {m.description && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {m.contextWindow ? `${(m.contextWindow / 1000).toFixed(0)}K` : '—'}
+                              </TableCell>
+                              <TableCell>
+                                {m.alreadyAdded ? (
+                                  <Badge variant="secondary" className="text-xs">Added</Badge>
+                                ) : newDiscovered ? (
+                                  <Badge className="text-xs bg-orange-500 hover:bg-orange-600">New</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">Available</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {!m.alreadyAdded && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs"
+                                    onClick={() => addDiscoveredModel(m.id)}
+                                    disabled={addingDiscovered === m.id}
+                                  >
+                                    {addingDiscovered === m.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Plus className="h-3 w-3 mr-1" />
+                                    )}
+                                    Add
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic py-4">
+                    Click "Fetch from Daemon" to discover models the daemon can actually serve
+                    (e.g. qwen3.8-max from qwengate). New models appear here with a one-click Add button.
+                  </p>
+                )}
               </div>
 
               <Alert>

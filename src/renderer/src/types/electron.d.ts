@@ -122,6 +122,28 @@ interface ProvidersAPI {
     models: EffectiveModel[]
     error?: string
   }>
+  fetchLiveModels: (providerId: string) => Promise<{
+    providerId: string
+    models: Array<{ id: string; owned_by?: string; context_window?: number; description?: string }>
+    fetchedAt: number
+    error?: string
+  }>
+  fetchAllLiveModels: () => Promise<Array<{
+    providerId: string
+    models: Array<{ id: string; owned_by?: string; context_window?: number; description?: string }>
+    fetchedAt: number
+    error?: string
+  }>>
+  mergeLiveModels: (providerId: string) => Promise<Array<{
+    id: string
+    inHardcoded: boolean
+    live: boolean
+    alreadyAdded: boolean
+    isCustom: boolean
+    actualModelId: string
+    contextWindow?: number
+    description?: string
+  }>>
 }
 
 interface AccountsAPI {

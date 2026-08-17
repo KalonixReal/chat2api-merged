@@ -126,6 +126,34 @@ const providersAPI = {
     error?: string
   }> => 
     ipcRenderer.invoke(IpcChannels.PROVIDERS_RESET_MODELS, providerId),
+  
+  fetchLiveModels: (providerId: string): Promise<{
+    providerId: string
+    models: Array<{ id: string; owned_by?: string; context_window?: number; description?: string }>
+    fetchedAt: number
+    error?: string
+  }> => 
+    ipcRenderer.invoke(IpcChannels.PROVIDERS_FETCH_LIVE_MODELS, providerId),
+  
+  fetchAllLiveModels: (): Promise<Array<{
+    providerId: string
+    models: Array<{ id: string; owned_by?: string; context_window?: number; description?: string }>
+    fetchedAt: number
+    error?: string
+  }>> => 
+    ipcRenderer.invoke(IpcChannels.PROVIDERS_FETCH_ALL_LIVE_MODELS),
+  
+  mergeLiveModels: (providerId: string): Promise<Array<{
+    id: string
+    inHardcoded: boolean
+    live: boolean
+    alreadyAdded: boolean
+    isCustom: boolean
+    actualModelId: string
+    contextWindow?: number
+    description?: string
+  }>> => 
+    ipcRenderer.invoke(IpcChannels.PROVIDERS_MERGE_LIVE_MODELS, providerId),
 }
 
 const accountsAPI = {

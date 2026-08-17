@@ -10,6 +10,7 @@ import { Account, Provider } from '../store/types'
 import { ForwardResult, ChatCompletionRequest, ProxyContext } from './types'
 import { proxyStatusManager } from './status'
 import { storeManager } from '../store/store'
+import { smartSwitcher } from './smartSwitcher'
 import { DeepSeekAdapter } from './adapters/deepseek'
 import { DeepSeekStreamHandler } from './adapters/deepseek-stream'
 import { GLMAdapter, GLMStreamHandler } from './adapters/glm'
@@ -467,7 +468,7 @@ export class RequestForwarder {
       let upstreamChatId = ''
 
       try {
-        const { smartSwitcher } = await import('./smartSwitcher')
+        // smartSwitcher is statically imported at top of file
         sessionMapping = await smartSwitcher.getOrCreateSession({
           model: request.model,
           messages: transformedRequest.messages as any,
@@ -479,7 +480,7 @@ export class RequestForwarder {
           // (The loadbalancer may have picked a now-throttled account; the switcher
           // knows which account is actually healthy for this session.)
           if (sessionMapping.accountId && sessionMapping.accountId !== account.id) {
-            const switchedAccount = (await import('../store/store')).storeManager.getAccountById(sessionMapping.accountId)
+            const switchedAccount = storeManager.getAccountById(sessionMapping.accountId)
             if (switchedAccount) activeAccount = switchedAccount
           }
         }
@@ -513,19 +514,19 @@ export class RequestForwarder {
       // or SSE stream containing error markers.
       const isThrottled = response.status === 429 || response.status === 403 || response.status === 401
       const errorMessage = response.status >= 400
-        ? this.extractErrorMessage(response.data, response.status)
+        ? this.extractErrorMessage(response)
         : ''
 
       if (isThrottled && sessionMapping) {
         console.warn(`${logTag} account ${activeAccount.id} throttled (HTTP ${response.status}), attempting failover...`)
         try {
-          const { smartSwitcher } = await import('./smartSwitcher')
+          // smartSwitcher is statically imported at top of file
           const failoverResult = await smartSwitcher.failover(sessionMapping, `HTTP ${response.status}: ${errorMessage}`)
 
           if (failoverResult.session) {
             // Retry with the new account/chat
             const newSession = failoverResult.session
-            const newAccount = (await import('../store/store')).storeManager.getAccountById(newSession.accountId) || activeAccount
+            const newAccount = storeManager.getAccountById(newSession.accountId) || activeAccount
             const newAdapter = new AdapterClass(activeProvider, newAccount)
 
             console.log(`${logTag} failover → account ${newAccount.id}, crossProvider=${failoverResult.crossProvider}`)
@@ -601,7 +602,7 @@ export class RequestForwarder {
       // ─── Success: update session mapping with the new chat id ──────────
       if (sessionMapping && sessionId) {
         try {
-          const { smartSwitcher } = await import('./smartSwitcher')
+          // smartSwitcher is statically imported at top of file
           smartSwitcher.updateUpstreamChatId(sessionMapping.sessionHash, sessionId)
         } catch {}
       }
@@ -658,18 +659,9 @@ export class RequestForwarder {
     }
   }
 
-  /**
-   * Extract a human-readable error message from an upstream error response.
-   */
-  private extractErrorMessage(data: any, status: number): string {
-    if (!data) return `HTTP ${status}`
-    if (typeof data === 'string') return data.slice(0, 500)
-    if (data.msg) return data.msg
-    if (data.message) return data.message
-    if (data.error?.message) return data.error.message
-    if (data.error) return typeof data.error === 'string' ? data.error : JSON.stringify(data.error).slice(0, 500)
-    return `HTTP ${status}`
-  }
+  // extractErrorMessage is defined further down (single shared impl taking
+  // an AxiosResponse). The forwardProxy method calls it with the response
+  // object directly.
 
   /**
    * GLM Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
