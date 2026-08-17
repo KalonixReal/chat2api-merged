@@ -10,23 +10,47 @@
  *   bun run.ts server   (boots daemons + this server)
  */
 
+// ─── Patch electron BEFORE any other imports ────────────────────────────────
+// bun install restores the real electron package which breaks headless mode.
+// This overwrites node_modules/electron/index.js with our shim so `import
+// { net, app, safeStorage } from 'electron'` resolves to stubs.
+const { spawnSync } = require('node:child_process')
+const { existsSync: _existsSync } = require('node:fs')
+const { join: _join } = require('node:path')
+const _patchScript = _join(process.cwd(), 'scripts', 'patch-electron.js')
+if (_existsSync(_patchScript)) {
+  try { spawnSync('node', [_patchScript], { stdio: 'pipe', shell: process.platform === 'win32' }) } catch {}
+}
+
 import { ProxyServer } from './src/main/proxy/server'
 import { daemonSupervisor, ensureInstalled } from './src/main/supervisor'
 import { storeManager } from './src/main/store/store'
+import { createWriteStream, mkdirSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 
-// ─── Verbose logger ─────────────────────────────────────────────────────────
-// Wraps console.log with timestamps + color codes so the terminal shows
-// exactly what's happening at all times.
+// ─── Logging ────────────────────────────────────────────────────────────────
+// Logs to BOTH stdout AND a file (logs/server.log) so the user can always
+// find logs even if the terminal closes. Uses plain ASCII (no box-drawing
+// chars) to avoid Windows cmd.exe encoding issues.
+const LOG_DIR = join(process.cwd(), 'logs')
+if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true })
+const LOG_FILE = join(LOG_DIR, 'server.log')
+const logStream = createWriteStream(LOG_FILE, { flags: 'a' })
+
 const C = {
   reset: '\x1b[0m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m',
   yellow: '\x1b[33m', blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m',
   gray: '\x1b[90m',
 }
+
 function ts(): string {
-  return new Date().toISOString().slice(11, 23) // HH:MM:SS.mmm
+  return new Date().toISOString().slice(11, 19) // HH:MM:SS
 }
+
 function log(msg: string, color: string = C.reset): void {
+  const line = `[${ts()}] ${msg}`
   console.log(`${C.gray}[${ts()}]${C.reset} ${color}${msg}${C.reset}`)
+  logStream.write(line + '\n')
 }
 function logInfo(msg: string): void { log(msg, C.cyan) }
 function logOk(msg: string): void { log(msg, C.green) }
@@ -34,38 +58,47 @@ function logWarn(msg: string): void { log(msg, C.yellow) }
 function logErr(msg: string): void { log(msg, C.red) }
 
 async function main() {
-  console.log(`\n${C.magenta}╔══════════════════════════════════════════════════════╗${C.reset}`)
-  console.log(`${C.magenta}║   chat2api-merged — Web Dashboard Server v2.1.0     ║${C.reset}`)
-  console.log(`${C.magenta}╚══════════════════════════════════════════════════════╝${C.reset}\n`)
+  console.log('\n=== chat2api-merged Web Dashboard Server v2.2.0 ===\n')
+  logStream.write(`\n${'='.repeat(60)}\n[${new Date().toISOString()}] Server starting\n${'='.repeat(60)}\n`)
 
   // Auto-install deps on first run
   logInfo('Checking dependencies...')
   const installed = await ensureInstalled()
   if (!installed) {
-    logWarn('Install completed with warnings — continuing anyway')
+    logWarn('Install completed with warnings -- continuing anyway')
   } else {
     logOk('Dependencies ready')
   }
 
-  // Initialize the store (loads config, accounts, providers from disk)
+  // Initialize the store
   logInfo('Initializing store...')
   try {
     await storeManager.initialize()
     const providers = storeManager.getProviders()
     const accounts = storeManager.getAccounts()
     logOk(`Store initialized: ${providers.length} providers, ${accounts.length} accounts`)
+    providers.forEach(p => {
+      const models = storeManager.getEffectiveModels(p.id)
+      log(`  provider: ${p.id} (${models.length} models)`, C.dim)
+    })
   } catch (err: any) {
     logErr(`Store initialization failed: ${err.message}`)
     logErr('Continuing with default config...')
   }
 
-  // Start all daemons in the background
+  // Start all daemons
   logInfo('Starting daemons...')
   await daemonSupervisor.startAll()
+  const statuses = await daemonSupervisor.checkAll()
+  statuses.forEach(s => {
+    if (s.healthy) logOk(`  daemon: ${s.id} :${s.port} UP`)
+    else logErr(`  daemon: ${s.id} :${s.port} DOWN ${s.detail || ''}`)
+  })
 
-  // Start the proxy server (serves the dashboard + OpenAI API)
+  // Start the proxy server
   const port = parseInt(process.env.PROXY_PORT || '8080', 10)
   const host = process.env.PROXY_HOST || '127.0.0.1'
+  logInfo(`Starting proxy server on ${host}:${port}...`)
   const proxy = new ProxyServer()
   const ok = await proxy.start(port, host)
 
@@ -74,29 +107,35 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`\n${C.green}╔══════════════════════════════════════════════════════╗${C.reset}`)
-  console.log(`${C.green}║  ✓ Server running                                    ║${C.reset}`)
-  console.log(`${C.green}╠══════════════════════════════════════════════════════╣${C.reset}`)
-  console.log(`${C.green}║  Dashboard:  http://${host}:${port}/dashboard${' '.repeat(Math.max(0, 28 - host.length - String(port).length - 21))}║${C.reset}`)
-  console.log(`${C.green}║  OpenAI API: http://${host}:${port}/v1/chat/completions${' '.repeat(Math.max(0, 28 - host.length - String(port).length - 34))}║${C.reset}`)
-  console.log(`${C.green}║  Health:     http://${host}:${port}/health${' '.repeat(Math.max(0, 28 - host.length - String(port).length - 19))}║${C.reset}`)
-  console.log(`${C.green}╚══════════════════════════════════════════════════════╝${C.reset}`)
-  console.log(`\n${C.gray}Press Ctrl+C to stop.${C.reset}\n`)
+  console.log('')
+  logOk('Server running!')
+  console.log('')
+  console.log(`  Dashboard:  http://${host}:${port}/dashboard`)
+  console.log(`  OpenAI API: http://${host}:${port}/v1/chat/completions`)
+  console.log(`  Health:     http://${host}:${port}/health`)
+  console.log(`  Logs:       ${LOG_FILE}`)
+  console.log('')
+  logStream.write(`[${new Date().toISOString()}] Server ready on ${host}:${port}\n`)
+  console.log('Press Ctrl+C to stop.\n')
 
   // Periodic status log (every 60s)
   setInterval(async () => {
-    const statuses = await daemonSupervisor.checkAll()
-    const up = statuses.filter(s => s.healthy).length
-    const down = statuses.filter(s => !s.healthy).length
-    log(`Status: ${up} up, ${down} down`, C.dim)
+    try {
+      const statuses = await daemonSupervisor.checkAll()
+      const up = statuses.filter(s => s.healthy).length
+      const down = statuses.filter(s => !s.healthy).length
+      log(`Status: ${up} daemons up, ${down} down`, C.dim)
+    } catch {}
   }, 60_000)
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
-    console.log(`\n${C.yellow}[${ts()}] ${signal} received — shutting down...${C.reset}`)
+    console.log(`\n[${ts()}] ${signal} received -- shutting down...`)
     logInfo('Stopping daemons...')
     await daemonSupervisor.stopAll()
     logOk('All daemons stopped')
+    logStream.write(`[${new Date().toISOString()}] Server stopped (${signal})\n`)
+    logStream.end()
     process.exit(0)
   }
   process.on('SIGINT', () => shutdown('SIGINT'))
@@ -106,5 +145,7 @@ async function main() {
 main().catch((err) => {
   logErr(`Fatal error: ${err.message}`)
   console.error(err.stack)
+  logStream.write(`[${new Date().toISOString()}] FATAL: ${err.stack}\n`)
+  logStream.end()
   process.exit(1)
 })

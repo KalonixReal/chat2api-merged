@@ -200,9 +200,17 @@ async function runInstall(): Promise<void> {
       log(c('green', `  ✓ ${name} deps already installed`))
     } else {
       log(c('yellow', `  → installing ${name} deps...`))
-      spawnSync('bun', ['install', '--silent'], { cwd: fullPath, stdio: 'pipe' })
+      spawnSync('bun', ['install', '--silent'], { cwd: fullPath, stdio: 'pipe', shell: IS_WIN })
       log(c('green', `  ✓ ${name} deps installed`))
     }
+  }
+  // ALWAYS re-apply the electron shim after install (bun install restores the
+  // original electron package which breaks headless server mode).
+  log(c('yellow', '  → patching electron for headless mode...'))
+  const patchScript = join(ROOT, 'scripts', 'patch-electron.js')
+  if (existsSync(patchScript)) {
+    spawnSync('node', [patchScript], { cwd: ROOT, stdio: 'pipe', shell: IS_WIN })
+    log(c('green', '  ✓ electron patched'))
   }
   // Patch kimi port 8000 → 5566
   const kimiCfg = join(ROOT, 'vendor', 'kimi-free-api', 'configs', 'dev', 'service.yml')
@@ -374,6 +382,13 @@ async function main() {
     if (mode === 'install') return
   }
 
+  // ALWAYS patch electron before starting the server (bun install may have
+  // restored the real electron package, breaking headless mode).
+  const patchScript = join(ROOT, 'scripts', 'patch-electron.js')
+  if (existsSync(patchScript) && existsSync(join(ROOT, 'node_modules', 'electron'))) {
+    spawnSync('node', [patchScript], { cwd: ROOT, stdio: 'pipe', shell: IS_WIN })
+  }
+
   if (mode === 'daemons' || mode === 'all') {
     log(c('blue', '\n=== Starting daemons ==='))
     for (const cfg of DAEMONS) {
@@ -397,11 +412,10 @@ async function main() {
   if (mode === 'server') {
     // Headless server mode: boot daemons + proxy server, no Electron.
     // The web dashboard is served at http://localhost:8080/dashboard
-    log(c('green', '\nDaemons + proxy running. Press Ctrl+C to stop.'))
     log(c('blue', '\n=== Starting proxy server (headless) ==='))
-    log(`  Dashboard: http://localhost:8080/dashboard`)
+    log(`  Dashboard:  http://localhost:8080/dashboard`)
     log(`  OpenAI API: http://localhost:8080/v1/chat/completions`)
-    log(`  Logs:      ${LOG_DIR}`)
+    log(`  Logs:       ${LOG_DIR}`)
     const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
     server.on('exit', async (code) => {
       await stopAllDaemons()
