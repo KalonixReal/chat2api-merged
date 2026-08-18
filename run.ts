@@ -1,14 +1,14 @@
 /**
- * run.ts — Windows single entry point.
+ * run.ts - Windows single entry point.
  *
- * One command. `bun run.ts` (or double-click start.bat).
- * Auto-installs deps on first run, boots 4 daemons, launches the Electron app.
+ * One command: bun run.ts (or double-click start.bat).
+ * Auto-installs deps on first run, boots daemons, starts the proxy server.
  *
  * Usage:
- *   bun run.ts              # install (if needed) + boot daemons + start Electron
- *   bun run.ts daemons       # headless: boot daemons only
+ *   bun run.ts              # install (if needed) + boot server + dashboard
+ *   bun run.ts daemons       # boot daemons only (no proxy)
  *   bun run.ts check        # check daemon health
- *   bun run.ts install      # run install only, don't boot
+ *   bun run.ts install      # run install only
  */
 
 import { existsSync, mkdirSync, copyFileSync, writeFileSync, openSync, readdirSync, readFileSync } from 'node:fs'
@@ -28,18 +28,18 @@ mkdirSync(PID_DIR, { recursive: true })
 // ============================================================================
 // Logging
 // ============================================================================
-const colors = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
+const C = {
+  reset: '\x1b[0m', red: '\x1b[31m', green: '\x1b[32m',
+  yellow: '\x1b[33m', blue: '\x1b[34m', gray: '\x1b[90m',
 }
-function c(color: keyof typeof colors, msg: string): string {
-  return `${colors[color]}${msg}${colors.reset}`
+function c(color: keyof typeof C, msg: string): string {
+  return `${C[color]}${msg}${C.reset}`
 }
-function log(msg: string): void {
-  console.log(msg)
+function log(msg: string, color: keyof typeof C = 'reset'): void {
+  console.log(`${c('gray', `[${ts()}]`)} ${c(color, msg)}`)
+}
+function ts(): string {
+  return new Date().toISOString().slice(11, 19)
 }
 
 // ============================================================================
@@ -64,202 +64,146 @@ async function healthCheck(port: number, path: string, auth?: string): Promise<b
 // Install logic (Windows)
 // ============================================================================
 async function runInstall(): Promise<void> {
-  log(c('blue', '\n=== Installing (Windows) ===\n'))
+  log('Installing (Windows)...', 'blue')
 
   // Check runtimes
   if (!commandExists('bun')) {
-    log(c('red', 'ERROR: bun not found. Install: https://bun.sh'))
+    log('ERROR: bun not found. Install: https://bun.sh', 'red')
     process.exit(1)
   }
-  log(c('green', `  ✓ bun ${Bun.version}`))
+  log('  bun OK', 'green')
   if (!checkPython()) {
-    log(c('red', 'ERROR: Python 3.9+ not found (needed for DeepSeek daemon)'))
-    log(c('yellow', '  Install from https://python.org (NOT the Windows Store stub)'))
+    log('ERROR: Python 3.9+ not found. Install from https://python.org', 'red')
     process.exit(1)
   }
-  log(c('green', '  ✓ python'))
+  log('  python OK', 'green')
 
-  // 1. GLM-Free-API: link/copy pre-built binary (platform-specific)
-  log(c('blue', '\n=== 1/4 GLM-Free-API (Z.ai) — pre-built binary ==='))
+  // 1. GLM-Free-API: copy pre-built Windows binary
+  log('1/4 GLM-Free-API (Z.ai) - pre-built binary', 'blue')
   const glmDir = join(ROOT, 'vendor', 'glm-free-api')
-  const glmExt = IS_WIN ? '.exe' : ''
-  const glmBin = join(glmDir, `zai-api${glmExt}`)
-  const platformSuffix = IS_WIN ? 'windows-amd64' : `${process.platform}-${process.arch}`
-  const platformBin = join(glmDir, `zai-api-${platformSuffix}${glmExt}`)
+  const glmBin = join(glmDir, 'zai-api.exe')
+  const platformBin = join(glmDir, 'zai-api-windows-amd64.exe')
   if (existsSync(glmBin)) {
-    log(c('green', '  ✓ already linked'))
+    log('  already copied', 'green')
   } else if (existsSync(platformBin)) {
-    if (IS_WIN) {
-      copyFileSync(platformBin, glmBin)
-    } else {
-      // On Unix, try symlink first (cleaner), fall back to copy
-      try {
-        const { symlinkSync } = require('node:fs')
-        symlinkSync(`zai-api-${platformSuffix}`, glmBin)
-      } catch {
-        copyFileSync(platformBin, glmBin)
-      }
-    }
-    log(c('green', `  ✓ linked zai-api${glmExt} → zai-api-${platformSuffix}${glmExt}`))
+    copyFileSync(platformBin, glmBin)
+    log('  copied zai-api.exe', 'green')
   } else {
-    // Try to find any platform binary (fallback — shouldn't normally hit)
-    const { readdirSync } = require('node:fs')
-    // On Windows we want .exe files; on Unix we want non-.exe files.
-    const candidates = readdirSync(glmDir).filter((f: string) =>
-      f.startsWith('zai-api-') && f.endsWith('.exe') === IS_WIN
-    )
-    if (candidates.length > 0) {
-      if (IS_WIN) {
-        copyFileSync(join(glmDir, candidates[0]), glmBin)
-      } else {
-        try { symlinkSync(candidates[0], glmBin) } catch { copyFileSync(join(glmDir, candidates[0]), glmBin) }
-      }
-      log(c('yellow', `  ⚠ linked ${candidates[0]} (platform mismatch)`))
-    } else {
-      log(c('red', '  ✗ no pre-built binary found'))
-    }
+    log('  ERROR: no pre-built binary found', 'red')
   }
-  // Captcha collector
-  const captchaBin = join(glmDir, `captcha-collector${glmExt}`)
-  const captchaPlatform = join(glmDir, `captcha-collector-${platformSuffix}${glmExt}`)
+  const captchaBin = join(glmDir, 'captcha-collector.exe')
+  const captchaPlatform = join(glmDir, 'captcha-collector-windows-amd64.exe')
   if (!existsSync(captchaBin) && existsSync(captchaPlatform)) {
-    if (IS_WIN) {
-      copyFileSync(captchaPlatform, captchaBin)
-    } else {
-      try { symlinkSync(`captcha-collector-${platformSuffix}`, captchaBin) } catch { copyFileSync(captchaPlatform, captchaBin) }
-    }
-    log(c('green', `  ✓ linked captcha-collector${glmExt}`))
+    copyFileSync(captchaPlatform, captchaBin)
+    log('  copied captcha-collector.exe', 'green')
   }
-  // Empty tokens.sqlite so GLM boots in guest mode
   const tokensDb = join(glmDir, 'tokens.sqlite')
   if (!existsSync(tokensDb)) {
     writeFileSync(tokensDb, '')
-    log(c('yellow', '  ⚠ created empty tokens.sqlite'))
+    log('  created empty tokens.sqlite', 'yellow')
   }
 
   // 2. DeepSeek-API: Python venv + deps
-  log(c('blue', '\n=== 2/4 DeepSeek-API — Python venv ==='))
+  log('2/4 DeepSeek-API - Python venv', 'blue')
   const dsDir = join(ROOT, 'vendor', 'deepseek-api')
-  const venvScripts = IS_WIN ? 'Scripts' : 'bin'
-  const venvPythonExt = IS_WIN ? 'python.exe' : 'python'
-  const venvPipExt = IS_WIN ? 'pip.exe' : 'pip'
-  const venvPython = join(dsDir, '.venv', venvScripts, venvPythonExt)
-  const venvPip = join(dsDir, '.venv', venvScripts, venvPipExt)
+  const venvPython = join(dsDir, '.venv', 'Scripts', 'python.exe')
+  const venvPip = join(dsDir, '.venv', 'Scripts', 'pip.exe')
   if (!existsSync(venvPython)) {
-    log(c('yellow', '  → creating venv...'))
+    log('  creating venv...', 'yellow')
     const pythonCmd = commandExists('python') ? 'python' : 'python3'
-    const venvResult = spawnSync(pythonCmd, ['-m', 'venv', join(dsDir, '.venv')], { stdio: 'pipe', shell: IS_WIN, encoding: 'utf-8' })
+    const venvResult = spawnSync(pythonCmd, ['-m', 'venv', join(dsDir, '.venv')], { stdio: 'pipe', shell: true, encoding: 'utf-8' })
     if (venvResult.status !== 0) {
-      log(c('red', '  ✗ venv creation failed:'))
-      log(c('red', '  ' + (venvResult.stderr || venvResult.stdout || 'unknown error').slice(0, 500)))
+      log('  venv creation failed: ' + (venvResult.stderr || '').slice(0, 300), 'red')
       process.exit(1)
     }
-    log(c('green', '  ✓ venv created'))
+    log('  venv created', 'green')
   } else {
-    log(c('green', '  ✓ venv already exists'))
+    log('  venv already exists', 'green')
   }
-  const depCheck = spawnSync(venvPip, ['show', 'fastapi'], { stdio: 'pipe', encoding: 'utf-8', shell: IS_WIN })
+  const depCheck = spawnSync(venvPip, ['show', 'fastapi'], { stdio: 'pipe', encoding: 'utf-8', shell: true })
   if (depCheck.status !== 0 || !depCheck.stdout?.includes('Name: fastapi')) {
-    log(c('yellow', '  → installing python deps (~30s)...'))
-    const pipUpgrade = spawnSync(venvPip, ['install', '-q', '--upgrade', 'pip'], { stdio: 'pipe', shell: IS_WIN, encoding: 'utf-8' })
-    const pipInstall = spawnSync(venvPip, ['install', '-q', '-r', join(dsDir, 'requirements.txt')], { stdio: 'pipe', shell: IS_WIN, encoding: 'utf-8' })
+    log('  installing python deps...', 'yellow')
+    spawnSync(venvPip, ['install', '-q', '--upgrade', 'pip'], { stdio: 'pipe', shell: true })
+    const pipInstall = spawnSync(venvPip, ['install', '-q', '-r', join(dsDir, 'requirements.txt')], { stdio: 'pipe', shell: true, encoding: 'utf-8' })
     if (pipInstall.status !== 0) {
-      log(c('red', '  ✗ pip install failed:'))
-      log(c('red', '  ' + (pipInstall.stderr || pipInstall.stdout || 'unknown error').slice(0, 500)))
+      log('  pip install failed: ' + (pipInstall.stderr || '').slice(0, 300), 'red')
       process.exit(1)
     }
-    log(c('green', '  ✓ deps installed'))
+    log('  deps installed', 'green')
   } else {
-    log(c('green', '  ✓ deps already installed'))
+    log('  deps already installed', 'green')
   }
-  // Always verify Playwright is installed in the Python venv (deepseek-api
-  // imports playwright at module load — if missing, the daemon crashes on boot).
-  // Idempotent: if already installed, this is a fast no-op.
-  const playwrightCheck = spawnSync(venvPip, ['show', 'playwright'], { stdio: 'pipe', encoding: 'utf-8' })
+  // Playwright for Python venv
+  const playwrightCheck = spawnSync(venvPip, ['show', 'playwright'], { stdio: 'pipe', encoding: 'utf-8', shell: true })
   if (playwrightCheck.status !== 0 || !playwrightCheck.stdout?.includes('Name: playwright')) {
-    log(c('yellow', '  → installing playwright for python venv...'))
-    spawnSync(venvPip, ['install', '-q', 'playwright'], { stdio: 'pipe' })
-    log(c('green', '  ✓ playwright installed'))
+    log('  installing playwright for python...', 'yellow')
+    spawnSync(venvPip, ['install', '-q', 'playwright'], { stdio: 'pipe', shell: true })
+    log('  playwright installed', 'green')
   } else {
-    log(c('green', '  ✓ playwright already installed'))
+    log('  playwright already installed', 'green')
   }
-  // Verify Playwright Chromium browser is installed for the Python venv
-  const pwBrowserPath = IS_WIN
-    ? join(process.env.USERPROFILE || process.env.HOME || '', 'AppData', 'Local', 'ms-playwright')
-    : join(process.env.HOME || '', '.cache', 'ms-playwright')
+  // Chromium browser for Python Playwright
+  const pwBrowserPath = join(process.env.USERPROFILE || '', 'AppData', 'Local', 'ms-playwright')
   let pyHasChromium = false
   try {
     if (existsSync(pwBrowserPath)) {
-      const entries = readdirSync(pwBrowserPath)
-      pyHasChromium = entries.some((e) => e.startsWith('chromium'))
+      pyHasChromium = readdirSync(pwBrowserPath).some((e) => e.startsWith('chromium'))
     }
   } catch {}
   if (!pyHasChromium) {
-    log(c('yellow', '  → installing playwright chromium for python...'))
-    const pwExeName = IS_WIN ? 'playwright.exe' : 'playwright'
-    const pwExe = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', pwExeName)
-    const pwResult = spawnSync(pwExe, ['install', 'chromium'], { stdio: 'pipe', shell: IS_WIN, encoding: 'utf-8' })
-    if (pwResult.status !== 0) {
-      log(c('yellow', '  ⚠ playwright chromium install may have failed (continuing)'))
-    } else {
-      log(c('green', '  ✓ playwright chromium installed'))
-    }
+    log('  installing playwright chromium...', 'yellow')
+    const pwExe = join(dsDir, '.venv', 'Scripts', 'playwright.exe')
+    spawnSync(pwExe, ['install', 'chromium'], { stdio: 'pipe', shell: true })
+    log('  chromium installed', 'green')
   } else {
-    log(c('green', '  ✓ playwright chromium already present'))
+    log('  chromium already present', 'green')
   }
 
   // 3. TS daemons: bun install
-  log(c('blue', '\n=== 3/4 TypeScript daemons — bun install ==='))
+  log('3/4 TypeScript daemons - bun install', 'blue')
   for (const dir of ['vendor/qwen-gate', 'vendor/kimi-free-api', '.']) {
     const name = dir === '.' ? 'chat2api' : basename(dir)
     const fullPath = join(ROOT, dir)
     if (existsSync(join(fullPath, 'node_modules'))) {
-      log(c('green', `  ✓ ${name} deps already installed`))
+      log(`  ${name} deps already installed`, 'green')
     } else {
-      log(c('yellow', `  → installing ${name} deps...`))
-      spawnSync('bun', ['install', '--silent'], { cwd: fullPath, stdio: 'pipe', shell: IS_WIN })
-      log(c('green', `  ✓ ${name} deps installed`))
+      log(`  installing ${name} deps...`, 'yellow')
+      spawnSync('bun', ['install', '--silent'], { cwd: fullPath, stdio: 'pipe', shell: true })
+      log(`  ${name} deps installed`, 'green')
     }
   }
-  // Patch kimi port 8000 → 5566
+  // Patch kimi port 8000 -> 5566
   const kimiCfg = join(ROOT, 'vendor', 'kimi-free-api', 'configs', 'dev', 'service.yml')
   if (existsSync(kimiCfg)) {
     const content = readFileSync(kimiCfg, 'utf-8')
     if (content.includes('port: 8000')) {
       writeFileSync(kimiCfg, content.replace(/^port: 8000$/m, 'port: 5566'))
-      log(c('green', '  ✓ kimi-free-api port set to 5566'))
+      log('  kimi-free-api port set to 5566', 'green')
     }
   }
 
-  // 4. Playwright Chromium
-  log(c('blue', '\n=== 4/4 Playwright Chromium ==='))
-  const pwCache = process.env.PLAYWRIGHT_BROWSERS_PATH || (IS_WIN
-    ? join(process.env.USERPROFILE || process.env.HOME || '', 'AppData', 'Local', 'ms-playwright')
-    : join(process.env.HOME || '', '.cache', 'ms-playwright'))
+  // 4. Playwright Chromium (Node)
+  log('4/4 Playwright Chromium (Node)', 'blue')
+  const pwCache = process.env.PLAYWRIGHT_BROWSERS_PATH || join(process.env.USERPROFILE || '', 'AppData', 'Local', 'ms-playwright')
   let hasChromium = false
   try {
     if (existsSync(pwCache)) {
-      const entries = readdirSync(pwCache)
-      hasChromium = entries.some((e) => e.startsWith('chromium'))
+      hasChromium = readdirSync(pwCache).some((e) => e.startsWith('chromium'))
     }
   } catch {}
   if (hasChromium) {
-    log(c('green', '  ✓ chromium already downloaded'))
+    log('  chromium already downloaded', 'green')
   } else {
-    log(c('yellow', '  → downloading chromium (~150MB)...'))
-    spawnSync('bun', ['x', 'playwright', 'install', 'chromium'], {
-      cwd: join(ROOT, 'vendor', 'qwen-gate'),
-      stdio: 'pipe',
-      shell: IS_WIN,
-    })
-    log(c('green', '  ✓ chromium downloaded'))
+    log('  downloading chromium...', 'yellow')
+    spawnSync('bun', ['x', 'playwright', 'install', 'chromium'], { cwd: join(ROOT, 'vendor', 'qwen-gate'), stdio: 'pipe', shell: true })
+    log('  chromium downloaded', 'green')
   }
 
-  log(c('blue', '\n=== INSTALL COMPLETE ===\n'))
+  log('INSTALL COMPLETE', 'blue')
 }
 
 // ============================================================================
-// Daemon management
+// Daemon management (Windows)
 // ============================================================================
 interface DaemonConfig {
   id: string
@@ -270,8 +214,6 @@ interface DaemonConfig {
   env: Record<string, string>
   command: string[]
 }
-
-const IS_WIN = process.platform === 'win32'
 
 const DAEMONS: DaemonConfig[] = [
   {
@@ -288,12 +230,7 @@ const DAEMONS: DaemonConfig[] = [
     healthPath: '/v1/models',
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
-    // app_windows.py imports the FastAPI app object directly (avoids uvicorn
-    // string-import resolution which fails on Windows with shell:true).
-    // On Unix, app.py works fine (uvicorn resolves the string correctly).
-    command: IS_WIN
-      ? ['.venv/Scripts/python.exe', 'app_windows.py']
-      : ['.venv/bin/python', 'app.py'],
+    command: ['.venv\\Scripts\\python.exe', 'app_windows.py'],
   },
   {
     id: 'glm-free-api',
@@ -302,8 +239,7 @@ const DAEMONS: DaemonConfig[] = [
     auth: 'Waguri',
     cwd: 'vendor/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
-    // Pre-built binary (Windows: zai-api.exe, Unix: ./zai-api symlink)
-    command: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
+    command: ['zai-api.exe'],
   },
   {
     id: 'kimi-free-api',
@@ -311,7 +247,6 @@ const DAEMONS: DaemonConfig[] = [
     healthPath: '/v1/models',
     cwd: 'vendor/kimi-free-api',
     env: {},
-    // Use 'start' (node dist/index.js) instead of 'dev' (tsup --watch).
     command: ['bun', 'dist/index.js'],
   },
 ]
@@ -320,29 +255,22 @@ const runningChildren: Map<string, ChildProcess> = new Map()
 
 async function startDaemon(cfg: DaemonConfig): Promise<boolean> {
   if (await healthCheck(cfg.port, cfg.healthPath, cfg.auth)) {
-    log(c('green', `  ✓ ${cfg.id} already running on :${cfg.port}`))
+    log(`${cfg.id} already running on :${cfg.port}`, 'green')
     return true
   }
-  log(c('yellow', `  → starting ${cfg.id} on :${cfg.port}...`))
+  log(`starting ${cfg.id} on :${cfg.port}...`, 'yellow')
   const cwd = resolve(ROOT, cfg.cwd)
   const logPath = join(LOG_DIR, `${cfg.id}.log`)
   const logFd = openSync(logPath, 'a')
   const childEnv = { ...process.env, ...cfg.env } as NodeJS.ProcessEnv
-  // On Windows, normalize paths to backslashes + use shell:true so cmd.exe
-  // resolves relative paths like .venv\Scripts\python.exe via PATHEXT.
-  // On Unix, shell:false (avoids quoting issues) — paths work natively.
-  const isWin = process.platform === 'win32'
-  const cmd0 = isWin ? cfg.command[0].replace(/\//g, '\\') : cfg.command[0]
-  const cmdRest = isWin
-    ? cfg.command.slice(1).map((a) => a.replace(/\//g, '\\'))
-    : cfg.command.slice(1)
-  const child = spawn(cmd0, cmdRest, {
+  // shell:true on Windows so bun.exe / python.exe / zai-api.exe resolve via PATHEXT
+  const child = spawn(cfg.command[0], cfg.command.slice(1), {
     cwd,
     env: childEnv,
     stdio: ['ignore', logFd, logFd],
     detached: false,
     windowsHide: true,
-    shell: isWin,
+    shell: true,
   })
   runningChildren.set(cfg.id, child)
   writeFileSync(join(PID_DIR, `${cfg.id}.pid`), String(child.pid))
@@ -352,10 +280,10 @@ async function startDaemon(cfg: DaemonConfig): Promise<boolean> {
     await sleep(1000)
   }
   if (await healthCheck(cfg.port, cfg.healthPath, cfg.auth)) {
-    log(c('green', `  ✓ ${cfg.id} up on :${cfg.port} (PID ${child.pid})`))
+    log(`${cfg.id} up on :${cfg.port}`, 'green')
     return true
   }
-  log(c('red', `  ✗ ${cfg.id} failed — see ${logPath}`))
+  log(`${cfg.id} failed - see ${logPath}`, 'red')
   return false
 }
 
@@ -368,7 +296,7 @@ async function stopAllDaemons(): Promise<void> {
         if (!child.killed) child.kill('SIGKILL')
       }
     } catch {}
-    log(c('green', `  ${id}: stopped`))
+    log(`${id}: stopped`, 'green')
   }
   runningChildren.clear()
 }
@@ -380,10 +308,10 @@ async function main() {
   const mode = process.argv[2] || 'all'
 
   if (mode === 'check') {
-    log(c('blue', '=== Daemon health ==='))
+    log('Daemon health:', 'blue')
     for (const cfg of DAEMONS) {
       const ok = await healthCheck(cfg.port, cfg.healthPath, cfg.auth)
-      log(`  ${ok ? c('green', 'V') : c('red', 'X')} ${cfg.id.padEnd(16)} :${cfg.port}  ${ok ? 'UP' : 'DOWN'}`)
+      log(`  ${ok ? 'OK' : 'XX'} ${cfg.id.padEnd(16)} :${cfg.port}  ${ok ? 'UP' : 'DOWN'}`, ok ? 'green' : 'red')
     }
     return
   }
@@ -394,56 +322,37 @@ async function main() {
   }
 
   if (mode === 'daemons') {
-    log(c('blue', '\n=== Starting daemons ==='))
-    for (const cfg of DAEMONS) {
-      await startDaemon(cfg)
-    }
-    log(c('blue', '\n=== Daemon status ==='))
+    log('Starting daemons...', 'blue')
+    for (const cfg of DAEMONS) { await startDaemon(cfg) }
+    log('Daemon status:', 'blue')
     for (const cfg of DAEMONS) {
       const ok = await healthCheck(cfg.port, cfg.healthPath, cfg.auth)
-      log(`  ${ok ? c('green', 'V') : c('red', 'X')} ${cfg.id.padEnd(16)} :${cfg.port}  ${ok ? 'UP' : 'DOWN'}`)
+      log(`  ${ok ? 'OK' : 'XX'} ${cfg.id.padEnd(16)} :${cfg.port}  ${ok ? 'UP' : 'DOWN'}`, ok ? 'green' : 'red')
     }
-    log(c('green', '\nDaemons-only mode. Press Ctrl+C to stop.'))
+    log('Daemons-only mode. Press Ctrl+C to stop.', 'green')
     process.on('SIGINT', async () => { await stopAllDaemons(); process.exit(0) })
     process.on('SIGTERM', async () => { await stopAllDaemons(); process.exit(0) })
     setInterval(() => {}, 1000)
     return
   }
 
-  if (mode === 'server') {
-    // Headless server mode: server.ts owns the daemons (via daemonSupervisor).
-    // Do NOT spawn daemons here — would double-spawn and crash.
-    // The web dashboard is served at http://localhost:8080/dashboard
-    log(c('blue', '\n=== Starting proxy server (headless) ==='))
-    log(`  Dashboard:  http://localhost:8080/dashboard`)
-    log(`  OpenAI API: http://localhost:8080/v1/chat/completions`)
-    log(`  Logs:       ${LOG_DIR}`)
-    const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
-    server.on('exit', (code) => { process.exit(code ?? 0) })
-    process.on('SIGINT', () => { process.exit(0) })
-    return
-  }
-
-  if (mode === 'all') {
-    // Default: same as 'server' mode (server.ts owns daemons via supervisor)
-    log(c('blue', '\n=== Starting proxy server ==='))
-    log(`  Dashboard:  http://localhost:8080/dashboard`)
-    const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
-    server.on('exit', (code) => { process.exit(code ?? 0) })
-    process.on('SIGINT', () => { process.exit(0) })
-    return
-  }
+  // Default: start the proxy server (server.ts owns the daemons)
+  log('Starting proxy server...', 'blue')
+  log(`  Dashboard:  http://localhost:8080/dashboard`, 'blue')
+  log(`  OpenAI API: http://localhost:8080/v1/chat/completions`, 'blue')
+  log(`  Logs:       ${LOG_DIR}`, 'blue')
+  const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: true })
+  server.on('exit', (code) => { process.exit(code ?? 0) })
+  process.on('SIGINT', () => { process.exit(0) })
 }
 
 // ============================================================================
 // Helpers
 // ============================================================================
 function needsInstall(): boolean {
-  const venvPython = IS_WIN ? '.venv/Scripts/python.exe' : '.venv/bin/python'
-  const glmBin = IS_WIN ? 'zai-api.exe' : 'zai-api'
   const checks = [
-    join(ROOT, 'vendor/glm-free-api', glmBin),
-    join(ROOT, 'vendor/deepseek-api', venvPython),
+    join(ROOT, 'vendor/glm-free-api/zai-api.exe'),
+    join(ROOT, 'vendor/deepseek-api/.venv/Scripts/python.exe'),
     join(ROOT, 'vendor/qwen-gate/node_modules'),
     join(ROOT, 'vendor/kimi-free-api/node_modules'),
     join(ROOT, 'node_modules'),
@@ -452,33 +361,17 @@ function needsInstall(): boolean {
 }
 
 function commandExists(cmd: string): boolean {
-  // On Windows use 'where', on Unix use 'which'. Fall back to 'command -v'.
-  // NOTE: We don't use 'where python' on Windows because it resolves to the
-  // Windows Store stub. For Python specifically, use checkPython() below.
-  const isWin = process.platform === 'win32'
-  const checker = isWin ? 'where' : 'which'
-  const result = spawnSync(checker, [cmd], { stdio: 'pipe', shell: isWin })
-  if (result.status === 0) return true
-  // Fallback: try 'command -v' (works on both bash and sh)
-  const fallback = spawnSync('sh', ['-c', `command -v ${cmd}`], { stdio: 'pipe' })
-  return fallback.status === 0
+  const result = spawnSync('where', [cmd], { stdio: 'pipe', shell: true })
+  return result.status === 0
 }
 
-/** Check if a real Python 3.x is available (not the Windows Store stub). */
 function checkPython(): boolean {
-  const isWin = process.platform === 'win32'
-  // Try 'python' then 'python3' — run --version and check output for 'Python 3'
   for (const cmd of ['python', 'python3', 'py']) {
     try {
-      const result = spawnSync(cmd, ['--version'], { stdio: 'pipe', encoding: 'utf-8', shell: isWin, timeout: 5000 })
+      const result = spawnSync(cmd, ['--version'], { stdio: 'pipe', encoding: 'utf-8', shell: true, timeout: 5000 })
       if (result.status === 0) {
         const output = (result.stdout || '') + (result.stderr || '')
-        if (/Python 3\.\d+/.test(output)) {
-          // On Windows, verify it's NOT the Store stub (which returns 0 but
-          // prints nothing useful). The stub doesn't have a real version string.
-          if (isWin && !output.trim()) continue
-          return true
-        }
+        if (/Python 3\.\d+/.test(output) && output.trim()) return true
       }
     } catch {}
   }
@@ -490,7 +383,6 @@ function sleep(ms: number): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(c('red', '\n=== FATAL ERROR ==='))
-  console.error(err)
+  console.error('FATAL ERROR:', err)
   process.exit(1)
 })

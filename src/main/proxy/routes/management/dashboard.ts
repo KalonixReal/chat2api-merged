@@ -94,7 +94,7 @@ router.get('/providers/status', async (ctx: Context) => {
   try {
     const [qwenAccounts, dsHealth, glmModels, kimiModels] = await Promise.allSettled([
       axios.get(`${QWENGATE_BASE}/api/accounts`, { timeout: 5000, validateStatus: () => true }),
-      axios.get(`${DEEPSEEK_BASE}/healthz`, { timeout: 5000, validateStatus: () => true }),
+      axios.get(`${DEEPSEEK_BASE}/v1/models`, { timeout: 5000, validateStatus: () => true }),
       axios.get(`${GLM_BASE}/v1/models`, { timeout: 5000, headers: { Authorization: 'Bearer Waguri' }, validateStatus: () => true }),
       axios.get(`${KIMI_BASE}/v1/models`, { timeout: 5000, validateStatus: () => true }),
     ])
@@ -188,10 +188,8 @@ router.delete('/qwen/accounts/:email', async (ctx: Context) => {
 
 router.post('/deepseek/login', async (ctx: Context) => {
   try {
-    // Platform-aware: Windows uses .venv/Scripts/python.exe, Unix uses .venv/bin/python
-    const isWin = process.platform === 'win32'
-    const pythonPath = isWin ? '.venv/Scripts/python.exe' : '.venv/bin/python'
-    const ok = await daemonSupervisor.spawnAuthWindow('deepseek-api', [pythonPath, '-m', 'deepseek.auth'])
+    // Windows: .venv\Scripts\python.exe
+    const ok = await daemonSupervisor.spawnAuthWindow('deepseek-api', ['.venv\\Scripts\\python.exe', '-m', 'deepseek.auth'])
     ctx.body = { success: ok, message: ok ? 'Browser login window opened' : 'Failed to spawn login' }
   } catch (err: any) {
     ctx.status = 500
