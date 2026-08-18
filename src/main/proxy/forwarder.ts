@@ -399,7 +399,7 @@ export class RequestForwarder {
   /**
    * DeepSeek Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
    * The original 110-LOC DeepSeek-specific protocol code is replaced by a thin
-   * HTTP forward to vendor/deepseek-api (sums001/Deepseek-API) on :8000.
+   * HTTP forward to daemons/deepseek-api (sums001/Deepseek-API) on :8000.
    */
   private async forwardDeepSeek(
     request: ChatCompletionRequest,
@@ -666,7 +666,7 @@ export class RequestForwarder {
   /**
    * GLM Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
    * The original GLM-specific protocol code is replaced by a thin HTTP forward
-   * to vendor/glm-free-api on :3001.
+   * to daemons/glm-free-api on :3001.
    */
   private async forwardGLM(
     request: ChatCompletionRequest,
@@ -690,7 +690,7 @@ export class RequestForwarder {
   /**
    * Kimi Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
    * The original Kimi-specific protocol code is replaced by a thin HTTP forward
-   * to vendor/kimi-free-api on :5566.
+   * to daemons/kimi-free-api on :5566.
    */
   private async forwardKimi(
     request: ChatCompletionRequest,
@@ -714,7 +714,7 @@ export class RequestForwarder {
   /**
    * Qwen Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
    * The original Qwen-specific protocol code is replaced by a thin HTTP forward
-   * to vendor/qwen-gate on :26405.
+   * to daemons/qwen-gate on :26405.
    */
   private async forwardQwen(
     request: ChatCompletionRequest,
@@ -738,7 +738,7 @@ export class RequestForwarder {
   /**
    * Qwen AI (International) Dedicated Forward — delegates to the unified
    * ProxyAdapter forwarder. The original QwenAi-specific protocol code is
-   * replaced by a thin HTTP forward to vendor/qwen-gate on :26405.
+   * replaced by a thin HTTP forward to daemons/qwen-gate on :26405.
    */
   private async forwardQwenAi(
     request: ChatCompletionRequest,
@@ -762,7 +762,7 @@ export class RequestForwarder {
   /**
    * Z.ai Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
    * The original Z.ai-specific protocol code is replaced by a thin HTTP forward
-   * to vendor/glm-free-api on :3001.
+   * to daemons/glm-free-api on :3001.
    */
   private async forwardZai(
     request: ChatCompletionRequest,

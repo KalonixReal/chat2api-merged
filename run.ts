@@ -163,7 +163,7 @@ async function runInstall(): Promise<void> {
 
   // 3. TS daemons: bun install
   log('3/4 TypeScript daemons - bun install', 'blue')
-  for (const dir of ['vendor/qwen-gate', 'vendor/kimi-free-api', '.']) {
+  for (const dir of ['daemons/qwen-gate', 'daemons/kimi-free-api', '.']) {
     const name = dir === '.' ? 'chat2api' : basename(dir)
     const fullPath = join(ROOT, dir)
     if (existsSync(join(fullPath, 'node_modules'))) {
@@ -222,7 +222,7 @@ const DAEMONS: DaemonConfig[] = [
     id: 'qwen-gate',
     port: 26405,
     healthPath: '/health',
-    cwd: 'vendor/qwen-gate',
+    cwd: 'daemons/qwen-gate',
     env: { PORT: '26405' },
     command: ['bun', 'src/index.tsx'],
   },
@@ -230,7 +230,7 @@ const DAEMONS: DaemonConfig[] = [
     id: 'deepseek-api',
     port: 8000,
     healthPath: '/v1/models',
-    cwd: 'vendor/deepseek-api',
+    cwd: 'daemons/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
     command: IS_WIN
       ? ['.venv\\Scripts\\python.exe', 'app_windows.py']
@@ -241,7 +241,7 @@ const DAEMONS: DaemonConfig[] = [
     port: 3001,
     healthPath: '/v1/models',
     auth: 'Waguri',
-    cwd: 'vendor/glm-free-api',
+    cwd: 'daemons/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
     command: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
   },
@@ -249,7 +249,7 @@ const DAEMONS: DaemonConfig[] = [
     id: 'kimi-free-api',
     port: 5566,
     healthPath: '/v1/models',
-    cwd: 'vendor/kimi-free-api',
+    cwd: 'daemons/kimi-free-api',
     env: {},
     command: ['bun', 'dist/index.js'],
   },
@@ -355,10 +355,10 @@ async function main() {
 // ============================================================================
 function needsInstall(): boolean {
   const checks = [
-    join(ROOT, 'vendor/glm-free-api', IS_WIN ? 'zai-api.exe' : 'zai-api'),
-    join(ROOT, 'vendor/deepseek-api', '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'python.exe' : 'python'),
-    join(ROOT, 'vendor/qwen-gate/node_modules'),
-    join(ROOT, 'vendor/kimi-free-api/node_modules'),
+    join(ROOT, 'daemons/glm-free-api', IS_WIN ? 'zai-api.exe' : 'zai-api'),
+    join(ROOT, 'daemons/deepseek-api', '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'python.exe' : 'python'),
+    join(ROOT, 'daemons/qwen-gate/node_modules'),
+    join(ROOT, 'daemons/kimi-free-api/node_modules'),
     join(ROOT, 'node_modules'),
   ]
   return checks.some((p) => !existsSync(p))

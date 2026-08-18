@@ -640,7 +640,7 @@ class SmartSwitcher extends EventEmitter {
    *   qwen/qwen-ai: POST http://localhost:26405/api/accounts/:email/login
    *                 (qwen-gate opens a headless browser to re-establish the session)
    *   deepseek:     spawn `.venv/bin/python -m deepseek.auth` (opens browser)
-   *   glm/zai:      re-run `captcha-collector` binary in vendor/glm-free-api/ (best-effort)
+   *   glm/zai:      re-run `captcha-collector` binary in daemons/glm-free-api/ (best-effort)
    *   kimi:         token auto-refreshes server-side; just retry
    *
    * Public signature accepts (providerId, accountId?) so the notifications
@@ -1138,12 +1138,12 @@ class SmartSwitcher extends EventEmitter {
   }
 
   /**
-   * Walk up from this source file to find the project root (where vendor/ lives).
+   * Walk up from this source file to find the project root (where daemons/ lives).
    */
   private findProjectRoot(): string | null {
     try {
       // The vite output is CJS, so __dirname points to the compiled location of
-      // this file under out/main/proxy/. Walk up until we find a `vendor/`
+      // this file under out/main/proxy/. Walk up until we find a `daemons/`
       // directory (max 8 levels to bound the search).
       let dir = resolvePath(__dirname)
       for (let i = 0; i < 8; i++) {

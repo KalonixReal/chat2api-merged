@@ -43,7 +43,7 @@ async function main() {
   console.log('1. ping():', ping)
   if (!ping.ok) {
     console.error('   ✗ FAIL — qwengate not reachable. Boot it first:')
-    console.error('     cd vendor/qwen-gate && bun install && bun src/index.tsx')
+    console.error('     cd daemons/qwen-gate && bun install && bun src/index.tsx')
     process.exit(1)
   }
   console.log('   ✓ qwengate healthy')

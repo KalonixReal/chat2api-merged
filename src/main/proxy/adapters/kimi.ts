@@ -1,6 +1,6 @@
 /**
  * Kimi adapter — proxy to xiaoY233/Kimi-Free-API (vendored under
- * vendor/kimi-free-api).
+ * daemons/kimi-free-api).
  *
  * Replaces the original 956-LOC KimiAdapter. The Koa server on :5566 speaks
  * OpenAI /v1/chat/completions, handles Kimi's Connect-RPC protocol, JWT auth,

@@ -1,5 +1,5 @@
 /**
- * Qwen adapter — proxy to youssefvdel/qwen-gate (vendored under vendor/qwen-gate)
+ * Qwen adapter — proxy to youssefvdel/qwen-gate (vendored under daemons/qwen-gate)
  *
  * Replaces the original 1180-LOC QwenAdapter. qwengate speaks OpenAI
  * /v1/chat/completions natively and handles the chat.qwen.ai reverse protocol

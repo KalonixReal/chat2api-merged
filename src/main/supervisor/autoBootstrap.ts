@@ -14,10 +14,10 @@ export function needsInstall(): boolean {
   const venvPython = IS_WIN ? '.venv/Scripts/python.exe' : '.venv/bin/python'
   const glmBin = IS_WIN ? 'zai-api.exe' : 'zai-api'
   const checks: Array<{ label: string; path: string }> = [
-    { label: 'glm-free-api binary', path: `vendor/glm-free-api/${glmBin}` },
-    { label: 'deepseek-api venv', path: `vendor/deepseek-api/${venvPython}` },
-    { label: 'qwen-gate node_modules', path: 'vendor/qwen-gate/node_modules' },
-    { label: 'kimi-free-api node_modules', path: 'vendor/kimi-free-api/node_modules' },
+    { label: 'glm-free-api binary', path: `daemons/glm-free-api/${glmBin}` },
+    { label: 'deepseek-api venv', path: `daemons/deepseek-api/${venvPython}` },
+    { label: 'qwen-gate node_modules', path: 'daemons/qwen-gate/node_modules' },
+    { label: 'kimi-free-api node_modules', path: 'daemons/kimi-free-api/node_modules' },
     { label: 'chat2api node_modules', path: 'node_modules' },
   ]
   for (const check of checks) {

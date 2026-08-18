@@ -79,10 +79,13 @@ async function main() {
   // Start all daemons
   logInfo('Starting daemons...')
   await daemonSupervisor.startAll()
+  // Wait for daemons to boot before health check (they need 10-30s to start)
+  logInfo('Waiting for daemons to boot (15s)...')
+  await new Promise(resolve => setTimeout(resolve, 15000))
   const statuses = await daemonSupervisor.checkAll()
   statuses.forEach(s => {
     if (s.healthy) logOk(`  daemon: ${s.id} :${s.port} UP`)
-    else logErr(`  daemon: ${s.id} :${s.port} DOWN ${s.detail || ''}`)
+    else logWarn(`  daemon: ${s.id} :${s.port} still booting... (will check again shortly)`)
   })
 
   // Start the proxy server

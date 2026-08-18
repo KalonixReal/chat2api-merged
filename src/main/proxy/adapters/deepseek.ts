@@ -1,6 +1,6 @@
 /**
  * DeepSeek adapter — proxy to sums001/Deepseek-API (vendored under
- * vendor/deepseek-api).
+ * daemons/deepseek-api).
  *
  * Replaces the original 474-LOC DeepSeekAdapter + 637-LOC DeepSeekStreamHandler.
  * sums001/Deepseek-API runs a FastAPI server on :8000 speaking OpenAI

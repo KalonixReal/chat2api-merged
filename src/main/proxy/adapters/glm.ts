@@ -1,6 +1,6 @@
 /**
  * GLM adapter — proxy to izaart95-jpg/GLM-Free-API (vendored under
- * vendor/glm-free-api).
+ * daemons/glm-free-api).
  *
  * Replaces the original 1097-LOC GLMAdapter. The Go server on :3001 speaks
  * OpenAI /v1/chat/completions AND Anthropic /v1/messages, handles z.ai captcha

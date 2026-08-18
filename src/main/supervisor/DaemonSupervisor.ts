@@ -2,7 +2,7 @@
  * DaemonSupervisor — process supervisor for the 4 vendored standalone daemons.
  *
  * Each swapped provider (Qwen / DeepSeek / Z.ai-GLM / Kimi) forwards HTTP to a
- * standalone reverse-API daemon under vendor/. This supervisor:
+ * standalone reverse-API daemon under daemons/. This supervisor:
  *
  *   1. Spawns the daemon child processes (via child_process.spawn).
  *   2. Pipes their stdout/stderr to logs/{id}.log under the project root.
@@ -77,7 +77,7 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     port: 26405,
     healthPath: '/health',
     startCommand: ['bun', 'src/index.tsx'],
-    cwd: 'vendor/qwen-gate',
+    cwd: 'daemons/qwen-gate',
     env: { PORT: '26405' },
     required: true,
   },
@@ -92,7 +92,7 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     startCommand: IS_WIN
       ? ['.venv\\Scripts\\python.exe', 'app_windows.py']
       : ['.venv/bin/python', 'app.py'],
-    cwd: 'vendor/deepseek-api',
+    cwd: 'daemons/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
     required: true,
   },
@@ -103,7 +103,7 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     healthPath: '/v1/models',
     // Pre-built binary (Windows: zai-api.exe, Unix: ./zai-api)
     startCommand: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
-    cwd: 'vendor/glm-free-api',
+    cwd: 'daemons/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
     required: true,
   },
@@ -113,7 +113,7 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     port: 5566,
     healthPath: '/v1/models',
     startCommand: ['bun', 'dist/index.js'],
-    cwd: 'vendor/kimi-free-api',
+    cwd: 'daemons/kimi-free-api',
     env: {},
     required: true,
   },
