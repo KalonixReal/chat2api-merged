@@ -67,7 +67,9 @@ export interface DaemonStatus {
   autoStart: boolean
 }
 
-/** Default daemon specs for the 4 vendored standalone projects. Windows-only. */
+/** Default daemon specs for the 4 vendored standalone projects. Platform-aware. */
+const IS_WIN = process.platform === 'win32'
+
 export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
   {
     id: 'qwen-gate',
@@ -86,7 +88,10 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     healthPath: '/v1/models',
     // app_windows.py imports the FastAPI app object directly (avoids uvicorn's
     // string-import resolution which fails on Windows with shell:true spawn).
-    startCommand: ['.venv\\Scripts\\python.exe', 'app_windows.py'],
+    // On Unix, app.py works fine.
+    startCommand: IS_WIN
+      ? ['.venv\\Scripts\\python.exe', 'app_windows.py']
+      : ['.venv/bin/python', 'app.py'],
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
     required: true,
@@ -96,8 +101,8 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     name: 'GLM-Free-API (Z.ai)',
     port: 3001,
     healthPath: '/v1/models',
-    // Pre-built Windows binary (zai-api-windows-amd64.exe copied to zai-api.exe).
-    startCommand: ['zai-api.exe'],
+    // Pre-built binary (Windows: zai-api.exe, Unix: ./zai-api)
+    startCommand: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
     cwd: 'vendor/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
     required: true,
@@ -107,7 +112,6 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     name: 'Kimi-Free-API',
     port: 5566,
     healthPath: '/v1/models',
-    // dist/index.js is committed, Bun runs it directly (no Node.js needed).
     startCommand: ['bun', 'dist/index.js'],
     cwd: 'vendor/kimi-free-api',
     env: {},
@@ -317,17 +321,19 @@ export class DaemonSupervisor {
       const childEnv = { ...process.env, ...spec.env } as NodeJS.ProcessEnv
       // On Windows, normalize the executable path to backslashes so cmd.exe
       // (used when shell:true) can resolve relative paths like
-      // Windows: normalize paths to backslashes so cmd.exe (shell:true) resolves
-      // relative paths like .venv\Scripts\python.exe correctly.
-      const cmd0 = spec.startCommand[0].replace(/\//g, '\\')
-      const cmdRest = spec.startCommand.slice(1).map((a) => a.replace(/\//g, '\\'))
+      // Windows: normalize paths to backslashes + use shell:true.
+      // Unix: keep forward slashes + shell:false.
+      const cmd0 = IS_WIN ? spec.startCommand[0].replace(/\//g, '\\') : spec.startCommand[0]
+      const cmdRest = IS_WIN
+        ? spec.startCommand.slice(1).map((a) => a.replace(/\//g, '\\'))
+        : spec.startCommand.slice(1)
       const child = spawn(cmd0, cmdRest, {
         cwd,
         env: childEnv,
         stdio: ['ignore', logFd, logFd],
         detached: false,
         windowsHide: true,
-        shell: true,
+        shell: IS_WIN,
       })
 
       entry.process = child
@@ -738,27 +744,27 @@ export class DaemonSupervisor {
   private preflight(spec: DaemonSpec): string {
     const cwd = resolve(this.projectRoot, spec.cwd)
     if (spec.id === 'glm-free-api') {
-      const binaryPath = join(cwd, 'zai-api.exe')
-      if (!existsSync(binaryPath)) {
-        return 'pre-built binary not found - run start.bat'
+      const binName = IS_WIN ? 'zai-api.exe' : 'zai-api'
+      if (!existsSync(join(cwd, binName))) {
+        return 'pre-built binary not found - run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     if (spec.id === 'kimi-free-api') {
-      const nm = join(cwd, 'node_modules')
-      if (!existsSync(nm)) {
-        return 'deps not installed - run start.bat'
+      if (!existsSync(join(cwd, 'node_modules'))) {
+        return 'deps not installed - run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     if (spec.id === 'deepseek-api') {
-      const venvPython = join(cwd, '.venv', 'Scripts', 'python.exe')
+      const venvPython = IS_WIN
+        ? join(cwd, '.venv', 'Scripts', 'python.exe')
+        : join(cwd, '.venv', 'bin', 'python')
       if (!existsSync(venvPython)) {
-        return 'python venv not created - run start.bat'
+        return 'python venv not created - run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     if (spec.id === 'qwen-gate') {
-      const nm = join(cwd, 'node_modules')
-      if (!existsSync(nm)) {
-        return 'deps not installed - run start.bat'
+      if (!existsSync(join(cwd, 'node_modules'))) {
+        return 'deps not installed - run start.bat (Windows) or bun run.ts install (Unix)'
       }
     }
     return ''

@@ -126,7 +126,13 @@ export class LoadBalancer {
   }
 
   /**
-   * Check if provider supports model
+   * Check if provider supports model.
+   *
+   * A model is "supported" if ANY of these is true:
+   *   1. The model name matches a displayName (case-insensitive, with * wildcard)
+   *   2. The model name matches an actualModelId (case-insensitive)
+   *   3. There's a global modelMapping that routes this model to this provider
+   *   4. The provider has no effective models defined (supports everything)
    */
   private providerSupportsModel(provider: Provider, model: string): boolean {
     const effectiveModels = storeManager.getEffectiveModels(provider.id)
@@ -135,45 +141,62 @@ export class LoadBalancer {
     }
 
     const normalizedModel = model.toLowerCase()
+
+    // Check both displayName AND actualModelId (custom models use actualModelId)
     const supported = effectiveModels.some(m => {
-      const normalizedSupported = m.displayName.toLowerCase()
-      if (normalizedSupported.endsWith('*')) {
-        return normalizedModel.startsWith(normalizedSupported.slice(0, -1))
+      const normalizedDisplay = m.displayName.toLowerCase()
+      const normalizedActual = (m.actualModelId || '').toLowerCase()
+      // Wildcard match (e.g. "qwen*")
+      if (normalizedDisplay.endsWith('*')) {
+        if (normalizedModel.startsWith(normalizedDisplay.slice(0, -1))) return true
       }
-      return normalizedSupported === normalizedModel
+      if (normalizedActual.endsWith('*')) {
+        if (normalizedModel.startsWith(normalizedActual.slice(0, -1))) return true
+      }
+      // Exact match on displayName
+      if (normalizedDisplay === normalizedModel) return true
+      // Exact match on actualModelId (this is the fix — custom models were
+      // being rejected because only displayName was checked)
+      if (normalizedActual && normalizedActual === normalizedModel) return true
+      return false
     })
-    
+
     if (supported) {
       return true
     }
 
+    // Check global model mappings
     const config = storeManager.getConfig()
     const globalMapping = config.modelMappings[model]
     if (globalMapping) {
       if (globalMapping.preferredProviderId) {
         if (globalMapping.preferredProviderId === provider.id) {
-          console.log(`[LoadBalancer] Model "${model}" matched preferred provider ${provider.name}`)
           return true
         }
         return false
       }
-      
+
       const actualModel = globalMapping.actualModel
       const normalizedActualModel = actualModel.toLowerCase()
       const actualSupported = effectiveModels.some(m => {
-        const normalizedSupported = m.displayName.toLowerCase()
-        if (normalizedSupported.endsWith('*')) {
-          return normalizedActualModel.startsWith(normalizedSupported.slice(0, -1))
+        const normalizedDisplay = m.displayName.toLowerCase()
+        const normalizedActual = (m.actualModelId || '').toLowerCase()
+        if (normalizedDisplay.endsWith('*')) {
+          if (normalizedActualModel.startsWith(normalizedDisplay.slice(0, -1))) return true
         }
-        return normalizedSupported === normalizedActualModel
+        if (normalizedActual.endsWith('*')) {
+          if (normalizedActualModel.startsWith(normalizedActual.slice(0, -1))) return true
+        }
+        if (normalizedDisplay === normalizedActualModel) return true
+        if (normalizedActual && normalizedActual === normalizedActualModel) return true
+        return false
       })
-      
+
       if (actualSupported) {
-        console.log(`[LoadBalancer] Model "${model}" (actualModel: "${actualModel}") supported by ${provider.name}`)
         return true
       }
     }
-    
+
     console.log(`[LoadBalancer] Provider ${provider.name} does not support model ${model}`)
     return false
   }

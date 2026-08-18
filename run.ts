@@ -25,6 +25,8 @@ const PID_DIR = join(ROOT, '.run')
 mkdirSync(LOG_DIR, { recursive: true })
 mkdirSync(PID_DIR, { recursive: true })
 
+const IS_WIN = process.platform === 'win32'
+
 // ============================================================================
 // Logging
 // ============================================================================
@@ -81,8 +83,8 @@ async function runInstall(): Promise<void> {
   // 1. GLM-Free-API: copy pre-built Windows binary
   log('1/4 GLM-Free-API (Z.ai) - pre-built binary', 'blue')
   const glmDir = join(ROOT, 'vendor', 'glm-free-api')
-  const glmBin = join(glmDir, 'zai-api.exe')
-  const platformBin = join(glmDir, 'zai-api-windows-amd64.exe')
+  const glmBin = join(glmDir, IS_WIN ? 'zai-api.exe' : 'zai-api')
+  const platformBin = join(glmDir, IS_WIN ? 'zai-api-windows-amd64.exe' : 'zai-api-linux-amd64')
   if (existsSync(glmBin)) {
     log('  already copied', 'green')
   } else if (existsSync(platformBin)) {
@@ -91,8 +93,8 @@ async function runInstall(): Promise<void> {
   } else {
     log('  ERROR: no pre-built binary found', 'red')
   }
-  const captchaBin = join(glmDir, 'captcha-collector.exe')
-  const captchaPlatform = join(glmDir, 'captcha-collector-windows-amd64.exe')
+  const captchaBin = join(glmDir, IS_WIN ? 'captcha-collector.exe' : 'captcha-collector')
+  const captchaPlatform = join(glmDir, IS_WIN ? 'captcha-collector-windows-amd64.exe' : 'captcha-collector-linux-amd64')
   if (!existsSync(captchaBin) && existsSync(captchaPlatform)) {
     copyFileSync(captchaPlatform, captchaBin)
     log('  copied captcha-collector.exe', 'green')
@@ -106,12 +108,12 @@ async function runInstall(): Promise<void> {
   // 2. DeepSeek-API: Python venv + deps
   log('2/4 DeepSeek-API - Python venv', 'blue')
   const dsDir = join(ROOT, 'vendor', 'deepseek-api')
-  const venvPython = join(dsDir, '.venv', 'Scripts', 'python.exe')
-  const venvPip = join(dsDir, '.venv', 'Scripts', 'pip.exe')
+  const venvPython = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'python.exe' : 'python')
+  const venvPip = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'pip.exe' : 'pip')
   if (!existsSync(venvPython)) {
     log('  creating venv...', 'yellow')
     const pythonCmd = commandExists('python') ? 'python' : 'python3'
-    const venvResult = spawnSync(pythonCmd, ['-m', 'venv', join(dsDir, '.venv')], { stdio: 'pipe', shell: true, encoding: 'utf-8' })
+    const venvResult = spawnSync(pythonCmd, ['-m', 'venv', join(dsDir, '.venv')], { stdio: 'pipe', shell: IS_WIN, encoding: 'utf-8' })
     if (venvResult.status !== 0) {
       log('  venv creation failed: ' + (venvResult.stderr || '').slice(0, 300), 'red')
       process.exit(1)
@@ -124,7 +126,7 @@ async function runInstall(): Promise<void> {
   if (depCheck.status !== 0 || !depCheck.stdout?.includes('Name: fastapi')) {
     log('  installing python deps...', 'yellow')
     spawnSync(venvPip, ['install', '-q', '--upgrade', 'pip'], { stdio: 'pipe', shell: true })
-    const pipInstall = spawnSync(venvPip, ['install', '-q', '-r', join(dsDir, 'requirements.txt')], { stdio: 'pipe', shell: true, encoding: 'utf-8' })
+    const pipInstall = spawnSync(venvPip, ['install', '-q', '-r', join(dsDir, 'requirements.txt')], { stdio: 'pipe', shell: IS_WIN, encoding: 'utf-8' })
     if (pipInstall.status !== 0) {
       log('  pip install failed: ' + (pipInstall.stderr || '').slice(0, 300), 'red')
       process.exit(1)
@@ -152,7 +154,7 @@ async function runInstall(): Promise<void> {
   } catch {}
   if (!pyHasChromium) {
     log('  installing playwright chromium...', 'yellow')
-    const pwExe = join(dsDir, '.venv', 'Scripts', 'playwright.exe')
+    const pwExe = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'playwright.exe' : 'playwright')
     spawnSync(pwExe, ['install', 'chromium'], { stdio: 'pipe', shell: true })
     log('  chromium installed', 'green')
   } else {
@@ -230,7 +232,9 @@ const DAEMONS: DaemonConfig[] = [
     healthPath: '/v1/models',
     cwd: 'vendor/deepseek-api',
     env: { PORT: '8000', HOST: '127.0.0.1' },
-    command: ['.venv\\Scripts\\python.exe', 'app_windows.py'],
+    command: IS_WIN
+      ? ['.venv\\Scripts\\python.exe', 'app_windows.py']
+      : ['.venv/bin/python', 'app.py'],
   },
   {
     id: 'glm-free-api',
@@ -239,7 +243,7 @@ const DAEMONS: DaemonConfig[] = [
     auth: 'Waguri',
     cwd: 'vendor/glm-free-api',
     env: { PORT: '3001', AUTH_TOKEN: 'Waguri' },
-    command: ['zai-api.exe'],
+    command: IS_WIN ? ['zai-api.exe'] : ['./zai-api'],
   },
   {
     id: 'kimi-free-api',
@@ -341,7 +345,7 @@ async function main() {
   log(`  Dashboard:  http://localhost:8080/dashboard`, 'blue')
   log(`  OpenAI API: http://localhost:8080/v1/chat/completions`, 'blue')
   log(`  Logs:       ${LOG_DIR}`, 'blue')
-  const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: true })
+  const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
   server.on('exit', (code) => { process.exit(code ?? 0) })
   process.on('SIGINT', () => { process.exit(0) })
 }
@@ -351,8 +355,8 @@ async function main() {
 // ============================================================================
 function needsInstall(): boolean {
   const checks = [
-    join(ROOT, 'vendor/glm-free-api/zai-api.exe'),
-    join(ROOT, 'vendor/deepseek-api/.venv/Scripts/python.exe'),
+    join(ROOT, 'vendor/glm-free-api', IS_WIN ? 'zai-api.exe' : 'zai-api'),
+    join(ROOT, 'vendor/deepseek-api', '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'python.exe' : 'python'),
     join(ROOT, 'vendor/qwen-gate/node_modules'),
     join(ROOT, 'vendor/kimi-free-api/node_modules'),
     join(ROOT, 'node_modules'),
@@ -361,7 +365,7 @@ function needsInstall(): boolean {
 }
 
 function commandExists(cmd: string): boolean {
-  const result = spawnSync('where', [cmd], { stdio: 'pipe', shell: true })
+  const result = spawnSync(IS_WIN ? 'where' : 'which', [cmd], { stdio: 'pipe', shell: IS_WIN })
   return result.status === 0
 }
 
