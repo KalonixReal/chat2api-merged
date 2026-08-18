@@ -340,14 +340,23 @@ async function main() {
     return
   }
 
-  // Default: start the proxy server (server.ts owns the daemons)
-  log('Starting proxy server...', 'blue')
+  // Default: boot daemons + launch Electron app
+  log('Booting daemons...', 'blue')
+  for (const cfg of DAEMONS) { await startDaemon(cfg) }
+
+  log('Starting Electron app...', 'blue')
   log(`  Dashboard:  http://localhost:8080/dashboard`, 'blue')
   log(`  OpenAI API: http://localhost:8080/v1/chat/completions`, 'blue')
   log(`  Logs:       ${LOG_DIR}`, 'blue')
-  const server = spawn('bun', ['server.ts'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
-  server.on('exit', (code) => { process.exit(code ?? 0) })
-  process.on('SIGINT', () => { process.exit(0) })
+
+  // Launch Electron via electron-vite preview
+  const electron = spawn('bun', ['start'], { cwd: ROOT, stdio: 'inherit', shell: IS_WIN })
+  electron.on('exit', async (code) => {
+    await stopAllDaemons()
+    process.exit(code ?? 0)
+  })
+  process.on('SIGINT', async () => { await stopAllDaemons(); process.exit(0) })
+  process.on('SIGTERM', async () => { await stopAllDaemons(); process.exit(0) })
 }
 
 // ============================================================================

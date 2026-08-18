@@ -1,7 +1,7 @@
 {
   "name": "chat2api",
   "version": "1.4.0",
-  "description": "Chat2API 管理器 - 统一管理多个 AI 服务提供商，提供 OpenAI 兼容 API 接口",
+  "description": "Chat2API \u7ba1\u7406\u5668 - \u7edf\u4e00\u7ba1\u7406\u591a\u4e2a AI \u670d\u52a1\u63d0\u4f9b\u5546\uff0c\u63d0\u4f9b OpenAI \u517c\u5bb9 API \u63a5\u53e3",
   "main": "./out/main/index.js",
   "author": {
     "name": "Chat2API Team",
@@ -10,10 +10,23 @@
   "homepage": "https://github.com/chat2api/Chat2API-Manager",
   "license": "GPL-3.0",
   "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "dev:win": "electron-vite dev",
     "check:source-artifacts": "node scripts/check-source-artifacts.js",
-    "release": "node scripts/release.js",
-    "start": "bun server.ts",
-    "dev": "bun server.ts"
+    "build": "npm run check:source-artifacts && electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "electron-vite preview",
+    "start:sandbox": "electron . --no-sandbox",
+    "postinstall": "electron-builder install-app-deps && node scripts/patch-electron.js",
+    "prebuild:check": "node scripts/prebuild-check.js",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win --x64",
+    "build:win32": "npm run build && electron-builder --win --ia32",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:mac-arm": "npm run build && electron-builder --mac --arm64",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:all": "npm run build && electron-builder --win --mac --linux",
+    "release": "node scripts/release.js"
   },
   "dependencies": {
     "@koa/router": "^15.3.0",
@@ -34,6 +47,8 @@
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "electron-store": "^10.0.0",
+    "electron-updater": "^6.3.9",
     "eventsource-parser": "^3.0.6",
     "i18next": "^25.8.11",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -66,6 +81,9 @@
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "canvas": "^3.2.1",
+    "electron": "^43.4.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^5.0.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
@@ -74,7 +92,7 @@
   "build": {
     "appId": "com.chat2api.manager",
     "productName": "Chat2API",
-    "copyright": "Copyright © 2026 Chat2API Team",
+    "copyright": "Copyright \u00a9 2026 Chat2API Team",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -106,7 +124,7 @@
       {
         "ext": "c2a",
         "name": "Chat2API Config",
-        "description": "Chat2API 配置文件",
+        "description": "Chat2API \u914d\u7f6e\u6587\u4ef6",
         "role": "Editor"
       }
     ],
@@ -209,7 +227,7 @@
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "desktop": {
         "Name": "Chat2API",
-        "Comment": "统一管理多个 AI 服务提供商",
+        "Comment": "\u7edf\u4e00\u7ba1\u7406\u591a\u4e2a AI \u670d\u52a1\u63d0\u4f9b\u5546",
         "Categories": "Utility;Network;",
         "StartupWMClass": "chat2api"
       }

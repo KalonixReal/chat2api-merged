@@ -6,13 +6,7 @@ where bun >nul 2>nul
 if errorlevel 1 (
     echo.
     echo [ERROR] Bun is not installed.
-    echo.
     echo Install it from: https://bun.sh
-    echo.
-    echo Or via PowerShell:
-    echo   powershell -c "irm bun.sh/install.ps1 ^| iex"
-    echo.
-    echo If you just installed Bun, close this window and open a new one.
     echo.
     pause
     exit /b 1
@@ -34,6 +28,9 @@ if errorlevel 1 (
 )
 
 cd /d "%~dp0"
-bun run.ts server
+
+REM Run the unified launcher (boots daemons + Electron app)
+bun run.ts
+
 pause
 endlocal

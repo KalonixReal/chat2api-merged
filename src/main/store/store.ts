@@ -1,32 +1,44 @@
 /**
  * Credential Storage Module - Core Storage Implementation
- * Uses electron-store for persistent storage with plain-text fallback.
+ * Uses electron-store for persistent storage
+ * Uses Electron's safeStorage API for sensitive data encryption (when available)
  *
- * Electron has been removed from this project. The store uses a local
- * data/ directory and plain (unencrypted) storage. This is acceptable
- * because the proxy runs locally on the user's machine.
+ * In headless mode (no Electron), falls back to plain storage + a local data
+ * directory — so the proxy server + dashboard can run with `bun server.ts`.
  */
 
-const path = require('path')
-const fs = require('fs')
-const DATA_DIR = path.join(process.cwd(), 'data')
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+// Dynamic electron import — falls back to stubs when Electron isn't available
+// (headless server mode). This lets the same code run both in Electron and
+// in standalone `bun server.ts` mode.
+let app: any
+let safeStorage: any
+let BrowserWindow: any
 
-const app = {
-  isReady: () => true,
-  getPath: (name: string) => name === 'userData' ? DATA_DIR : DATA_DIR,
-  on: () => {},
-  once: () => {},
-  quit: () => process.exit(0),
+try {
+  const electron = require('electron')
+  app = electron.app
+  safeStorage = electron.safeStorage
+  BrowserWindow = electron.BrowserWindow
+} catch {
+  // Headless mode — stub Electron APIs
+  const path = require('path')
+  const fs = require('fs')
+  const DATA_DIR = path.join(process.cwd(), 'data')
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
+  app = {
+    isReady: () => true,
+    getPath: (name: string) => name === 'userData' ? DATA_DIR : DATA_DIR,
+    on: () => {},
+    once: () => {},
+    quit: () => process.exit(0),
+  }
+  safeStorage = {
+    isEncryptionAvailable: () => false,
+    encryptString: (str: string) => Buffer.from(str, 'utf-8'),
+    decryptString: (buf: Buffer) => buf.toString('utf-8'),
+  }
+  BrowserWindow = class { constructor() {} }
 }
-
-const safeStorage = {
-  isEncryptionAvailable: () => false,
-  encryptString: (str: string) => Buffer.from(str, 'utf-8'),
-  decryptString: (buf: Buffer) => buf.toString('utf-8'),
-}
-
-const BrowserWindow = class { constructor() {} }
 
 import { homedir } from 'os'
 import { join } from 'path'
@@ -66,9 +78,8 @@ import { normalizeToolCallingConfig } from '../../shared/toolCalling'
 import { AppLogManager } from '../appLogs/manager'
 import type { AppLogFilter } from '../appLogs/types'
 
-// JsonStore — plain JSON file store (replaces electron-store, no electron dep)
-import { JsonStore } from './jsonStore'
-let Store: any = JsonStore
+// Dynamically import electron-store (ESM module)
+let Store: any = null
 
 /**
  * Storage Instance Type Definition
@@ -114,9 +125,10 @@ class StoreManager {
       return
     }
 
-    // Store is already assigned (JsonStore class)
+    // Dynamically import electron-store (ESM module)
     if (!Store) {
-      Store = JsonStore
+      const module = await import('electron-store')
+      Store = module.default
     }
 
     const storagePath = this.getStoragePath()
@@ -458,16 +470,15 @@ class StoreManager {
    */
   encryptData(data: string): string {
     try {
+      console.log('[Store] encryptData input length:', data.length, 'content:', data.substring(0, 20) + '...')
       if (safeStorage.isEncryptionAvailable()) {
         // Create new Buffer to store encryption result
         const encrypted = Buffer.from(safeStorage.encryptString(data))
         const result = encrypted.toString('base64')
+        console.log('[Store] encryptData output length:', result.length, 'content:', result.substring(0, 20) + '...')
         // Verify encryption is correct
         const decrypted = safeStorage.decryptString(encrypted)
-        if (decrypted !== data) {
-          console.warn('[Store] Encryption verification failed — falling back to plain')
-          return data
-        }
+        console.log('[Store] encryptData verify decryption:', decrypted.substring(0, 20) + '...', 'match:', decrypted === data)
         return result
       } else {
         console.log('[Store] Encryption unavailable, returning original data')
@@ -725,6 +736,9 @@ class StoreManager {
     
     if (updates.credentials) {
       updatedAccount.credentials = this.encryptCredentials(updates.credentials)
+      console.log('[Store] Encrypted credentials:', updatedAccount.credentials)
+      console.log('[Store] Old credentials:', accounts[index].credentials)
+      console.log('[Store] Credentials match:', JSON.stringify(updatedAccount.credentials) === JSON.stringify(accounts[index].credentials))
     }
     
     accounts[index] = updatedAccount
