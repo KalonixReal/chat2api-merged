@@ -82,7 +82,7 @@ async function runInstall(): Promise<void> {
 
   // 1. GLM-Free-API: copy pre-built Windows binary
   log('1/4 GLM-Free-API (Z.ai) - pre-built binary', 'blue')
-  const glmDir = join(ROOT, 'vendor', 'glm-free-api')
+  const glmDir = join(ROOT, 'daemons', 'glm-free-api')
   const glmBin = join(glmDir, IS_WIN ? 'zai-api.exe' : 'zai-api')
   const platformBin = join(glmDir, IS_WIN ? 'zai-api-windows-amd64.exe' : 'zai-api-linux-amd64')
   if (existsSync(glmBin)) {
@@ -107,7 +107,7 @@ async function runInstall(): Promise<void> {
 
   // 2. DeepSeek-API: Python venv + deps
   log('2/4 DeepSeek-API - Python venv', 'blue')
-  const dsDir = join(ROOT, 'vendor', 'deepseek-api')
+  const dsDir = join(ROOT, 'daemons', 'deepseek-api')
   const venvPython = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'python.exe' : 'python')
   const venvPip = join(dsDir, '.venv', IS_WIN ? 'Scripts' : 'bin', IS_WIN ? 'pip.exe' : 'pip')
   if (!existsSync(venvPython)) {
@@ -175,7 +175,7 @@ async function runInstall(): Promise<void> {
     }
   }
   // Patch kimi port 8000 -> 5566
-  const kimiCfg = join(ROOT, 'vendor', 'kimi-free-api', 'configs', 'dev', 'service.yml')
+  const kimiCfg = join(ROOT, 'daemons', 'kimi-free-api', 'configs', 'dev', 'service.yml')
   if (existsSync(kimiCfg)) {
     const content = readFileSync(kimiCfg, 'utf-8')
     if (content.includes('port: 8000')) {
@@ -197,7 +197,7 @@ async function runInstall(): Promise<void> {
     log('  chromium already downloaded', 'green')
   } else {
     log('  downloading chromium...', 'yellow')
-    spawnSync('bun', ['x', 'playwright', 'install', 'chromium'], { cwd: join(ROOT, 'vendor', 'qwen-gate'), stdio: 'pipe', shell: true })
+    spawnSync('bun', ['x', 'playwright', 'install', 'chromium'], { cwd: join(ROOT, 'daemons', 'qwen-gate'), stdio: 'pipe', shell: true })
     log('  chromium downloaded', 'green')
   }
 

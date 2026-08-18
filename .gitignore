@@ -10,16 +10,16 @@ logs/
 .run/
 dist/
 build/
+out/
+data/
 *.log
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Keep the pre-built Windows binaries (they're committed)
+# Keep ALL pre-built binaries (they're committed, not built at runtime)
 !daemons/glm-free-api/zai-api-windows-amd64.exe
+!daemons/glm-free-api/zai-api-linux-amd64
 !daemons/glm-free-api/captcha-collector-windows-amd64.exe
-!daemons/glm-free-api/zai-api.exe
-!daemons/glm-free-api/captcha-collector.exe
-out/
-dist/
+!daemons/glm-free-api/captcha-collector-linux-amd64
