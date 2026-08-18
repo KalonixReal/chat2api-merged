@@ -522,4 +522,242 @@ router.get('/logs', async (ctx: Context) => {
   }
 })
 
+// ─── In-browser CAPTCHA solving for ALL providers ────────────────────────────
+// The dashboard embeds each provider's login page in an iframe. After the user
+// solves the CAPTCHA + logs in, they paste the token/cookie they get from
+// DevTools. These routes provide the login URLs + accept extracted tokens.
+
+router.get('/captcha/login-urls', async (ctx: Context) => {
+  ctx.body = {
+    success: true,
+    urls: {
+      qwen: { url: 'https://chat.qwen.ai/', label: 'Qwen (China)', tokenLocation: 'Cookie: tongyi_sso_ticket' },
+      'qwen-ai': { url: 'https://chat.qwen.ai/', label: 'Qwen AI (International)', tokenLocation: 'DevTools > Local Storage > token' },
+      deepseek: { url: 'https://chat.deepseek.com/sign_in', label: 'DeepSeek', tokenLocation: 'DevTools > Local Storage > userToken' },
+      glm: { url: 'https://chat.z.ai/', label: 'Z.ai (GLM)', tokenLocation: 'DevTools > Local Storage > token' },
+      zai: { url: 'https://chat.z.ai/', label: 'Z.ai', tokenLocation: 'DevTools > Local Storage > token' },
+      kimi: { url: 'https://kimi.com/', label: 'Kimi', tokenLocation: 'DevTools > Cookies > refresh_token' },
+    },
+  }
+})
+
+router.post('/captcha/solve', async (ctx: Context) => {
+  try {
+    const { providerId, token, email, password } = ctx.request.body as {
+      providerId: string
+      token?: string
+      email?: string
+      password?: string
+    }
+    if (!providerId) {
+      ctx.status = 400
+      ctx.body = { success: false, error: 'providerId is required' }
+      return
+    }
+
+    let result = { success: false, message: '' }
+
+    switch (providerId) {
+      case 'qwen':
+      case 'qwen-ai': {
+        // For Qwen, we use email/password (qwengate handles the login)
+        if (email && password) {
+          try {
+            const resp = await axios.post(
+              `${QWENGATE_BASE}/api/accounts`,
+              { email, password },
+              { timeout: 60000, validateStatus: () => true },
+            )
+            result = {
+              success: resp.data?.loginSucceeded || resp.status < 400,
+              message: resp.data?.loginSucceeded
+                ? 'Qwen account added successfully'
+                : (resp.data?.loginError || 'Login failed'),
+            }
+          } catch (err: any) {
+            result = { success: false, message: err?.message || 'Failed to add Qwen account' }
+          }
+        } else if (token) {
+          // If user provides a JWT directly (Qwen AI International)
+          try {
+            const existing = storeManager.getAccountsByProviderId('qwen-ai')
+            if (existing.length > 0) {
+              storeManager.updateAccount(existing[0].id, {
+                credentials: { ...existing[0].credentials, token },
+              })
+            } else {
+              AccountManager.create({
+                providerId: 'qwen-ai',
+                name: 'Qwen AI Web',
+                credentials: { token },
+              })
+            }
+            result = { success: true, message: 'Qwen AI token saved' }
+          } catch (err: any) {
+            result = { success: false, message: err?.message }
+          }
+        }
+        break
+      }
+
+      case 'deepseek': {
+        // For DeepSeek, spawn the browser login script
+        const isWin = process.platform === 'win32'
+        const pythonPath = isWin ? '.venv\\Scripts\\python.exe' : '.venv/bin/python'
+        const ok = await daemonSupervisor.spawnAuthWindow('deepseek-api', [pythonPath, '-m', 'deepseek.auth'])
+        result = {
+          success: ok,
+          message: ok ? 'DeepSeek browser login opened - solve CAPTCHA there' : 'Failed to open login',
+        }
+        break
+      }
+
+      case 'glm':
+      case 'zai': {
+        // For Z.ai/GLM, save the token + restart the daemon
+        if (token) {
+          daemonSupervisor.setDaemonEnv('glm-free-api', { ZAI_TOKEN: token })
+          const restarted = await daemonSupervisor.restartDaemon('glm-free-api')
+          result = {
+            success: restarted,
+            message: restarted ? 'GLM token saved and daemon restarted' : 'Failed to restart daemon',
+          }
+        } else {
+          result = { success: false, message: 'Token is required for GLM' }
+        }
+        break
+      }
+
+      case 'kimi': {
+        // For Kimi, save the token as an account
+        if (token) {
+          try {
+            const existing = storeManager.getAccountsByProviderId('kimi')
+            if (existing.length > 0) {
+              storeManager.updateAccount(existing[0].id, {
+                credentials: { ...existing[0].credentials, token },
+              })
+            } else {
+              AccountManager.create({
+                providerId: 'kimi',
+                name: 'Kimi Web',
+                credentials: { token },
+              })
+            }
+            result = { success: true, message: 'Kimi token saved' }
+          } catch (err: any) {
+            result = { success: false, message: err?.message }
+          }
+        } else {
+          result = { success: false, message: 'Token is required for Kimi' }
+        }
+        break
+      }
+
+      default:
+        result = { success: false, message: `Unknown provider: ${providerId}` }
+    }
+
+    ctx.body = result
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+// ─── Full account management (list/add/remove for all providers) ─────────────
+
+router.get('/accounts', async (ctx: Context) => {
+  try {
+    const accounts = storeManager.getAccounts(true)
+    const providers = storeManager.getProviders()
+    const enriched = accounts.map(a => {
+      const provider = providers.find(p => p.id === a.providerId)
+      return {
+        id: a.id,
+        providerId: a.providerId,
+        providerName: provider?.name || a.providerId,
+        name: a.name,
+        email: a.email,
+        status: a.status,
+        createdAt: a.createdAt,
+        lastUsed: a.lastUsed,
+        requestCount: a.requestCount,
+        todayUsed: a.todayUsed,
+        dailyLimit: a.dailyLimit,
+        hasCredentials: !!(a.credentials && Object.keys(a.credentials).length > 0),
+      }
+    })
+    ctx.body = { success: true, accounts: enriched }
+  } catch (err: any) {
+    ctx.body = { success: false, error: err?.message, accounts: [] }
+  }
+})
+
+router.post('/accounts/add', async (ctx: Context) => {
+  try {
+    const { providerId, name, email, credentials } = ctx.request.body as {
+      providerId: string
+      name: string
+      email?: string
+      credentials: Record<string, string>
+    }
+    if (!providerId || !name || !credentials) {
+      ctx.status = 400
+      ctx.body = { success: false, error: 'providerId, name, and credentials are required' }
+      return
+    }
+    const account = AccountManager.create({ providerId, name, email, credentials })
+    ctx.body = { success: true, account }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+router.delete('/accounts/:id', async (ctx: Context) => {
+  try {
+    const id = ctx.params.id
+    const result = AccountManager.delete(id)
+    ctx.body = { success: result }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+// ─── Proxy control (start/stop/restart from dashboard) ──────────────────────
+
+router.post('/proxy/restart', async (ctx: Context) => {
+  try {
+    // The proxy server is managed by server.ts. We can't restart it from
+    // within a route, but we can tell the user to restart manually.
+    ctx.body = { success: true, message: 'Restart the server process (Ctrl+C + start.bat) to apply changes.' }
+  } catch (err: any) {
+    ctx.body = { success: false, error: err?.message }
+  }
+})
+
+// ─── Statistics ─────────────────────────────────────────────────────────────
+
+router.get('/statistics', async (ctx: Context) => {
+  try {
+    const stats = storeManager.getStatistics?.() || {}
+    const providers = storeManager.getProviders()
+    const accounts = storeManager.getAccounts()
+    ctx.body = {
+      success: true,
+      statistics: {
+        totalProviders: providers.length,
+        enabledProviders: providers.filter(p => p.enabled).length,
+        totalAccounts: accounts.length,
+        activeAccounts: accounts.filter(a => a.status === 'active').length,
+        ...stats,
+      },
+    }
+  } catch (err: any) {
+    ctx.body = { success: true, statistics: {}, error: err?.message }
+  }
+})
+
 export default router
