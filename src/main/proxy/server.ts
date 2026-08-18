@@ -12,6 +12,7 @@ import managementRoutes from './routes/management'
 import { proxyStatusManager } from './status'
 import { storeManager } from '../store/store'
 import { sessionManager } from './sessionManager'
+import { serveDashboard } from './dashboard'
 
 const SLOW_REQUEST_THRESHOLD_MS = 1500
 
@@ -61,14 +62,21 @@ export class ProxyServer {
     // API Key validation middleware
     this.app.use(async (ctx, next) => {
       // Skip paths that don't require authentication
-      const publicPaths = ['/', '/health', '/stats']
-      if (publicPaths.includes(ctx.path)) {
+      const publicPaths = ['/', '/health', '/stats', '/dashboard']
+      if (publicPaths.includes(ctx.path) || ctx.path.startsWith('/dashboard/')) {
         await next()
         return
       }
 
       // Skip management API paths - they have their own authentication
       if (ctx.path.startsWith('/v0/management')) {
+        await next()
+        return
+      }
+
+      // Allow GET /v1/models without auth (so the dashboard + Qwen Code can
+      // discover models even when API keys are enabled)
+      if (ctx.method === 'GET' && ctx.path === '/v1/models') {
         await next()
         return
       }
@@ -162,7 +170,6 @@ export class ProxyServer {
 
     // Web dashboard (replaces the Electron UI) — served at /dashboard
     this.router.get('/dashboard', async (ctx) => {
-      const { serveDashboard } = require('./dashboard')
       await serveDashboard(ctx)
     })
 

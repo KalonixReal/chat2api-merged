@@ -454,6 +454,13 @@ function showPage(page) {
   if (page === 'models') loadProviderModels();
   if (page === 'sessions') loadSessions();
   if (page === 'logs') loadLogs();
+  if (page === 'settings') loadProxySettings();
+}
+
+// Escape HTML to prevent XSS when interpolating server/user-controlled strings
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function toast(title, body, type = 'info', sticky = false) {
@@ -491,20 +498,34 @@ async function loadDaemons() {
         <div class="row-info">
           <span class="status-dot ${d.healthy ? 'up' : 'down'}"></span>
           <div>
-            <div class="row-name">${d.name}</div>
+            <div class="row-name">${escapeHtml(d.name)}</div>
             <div class="row-meta">:${d.port} — ${d.healthy ? 'UP' : (d.running ? 'starting...' : 'down')}</div>
-            ${d.detail ? `<div style="font-size:10px;color:var(--text-dim)">${d.detail}</div>` : ''}
+            ${d.detail ? `<div style="font-size:10px;color:var(--text-dim)">${escapeHtml(d.detail)}</div>` : ''}
           </div>
         </div>
-        <button class="btn btn-sm" onclick="restartDaemon('${d.id}')">Restart</button>
+        <div style="display:flex;gap:4px">
+          ${d.running ? `<button class="btn btn-sm" onclick="stopDaemon('${escapeHtml(d.id)}')">Stop</button>` : `<button class="btn btn-sm btn-success" onclick="startDaemon('${escapeHtml(d.id)}')">Start</button>`}
+          <button class="btn btn-sm" onclick="restartDaemon('${escapeHtml(d.id)}')">Restart</button>
+        </div>
       </div>`).join('');
   } catch (err) { document.getElementById('daemon-list').innerHTML = '<div class="empty">Failed</div>'; }
 }
 
 async function restartDaemon(id) {
-  toast('Restarting...', id, 'info');
-  await api('POST', `/daemons/${id}/restart`);
-  toast('Restarted', id, 'success');
+  toast('Restarting...', escapeHtml(id), 'info');
+  try { await api('POST', `/daemons/${encodeURIComponent(id)}/restart`); toast('Restarted', escapeHtml(id), 'success'); } catch (err) {}
+  loadDaemons();
+}
+
+async function startDaemon(id) {
+  toast('Starting...', escapeHtml(id), 'info');
+  try { await api('POST', `/daemons/${encodeURIComponent(id)}/start`); toast('Started', escapeHtml(id), 'success'); } catch (err) {}
+  loadDaemons();
+}
+
+async function stopDaemon(id) {
+  toast('Stopping...', escapeHtml(id), 'info');
+  try { await api('POST', `/daemons/${encodeURIComponent(id)}/stop`); toast('Stopped', escapeHtml(id), 'success'); } catch (err) {}
   loadDaemons();
 }
 
@@ -752,14 +773,14 @@ async function loadSessions() {
 async function loadLogs() {
   try {
     const limit = document.getElementById('log-limit')?.value || 50;
-    const resp = await fetch(`/v0/management/logs?limit=${limit}`);
-    const data = await resp.json();
+    // Use the dashboard logs endpoint (bypasses management API auth)
+    const data = await api('GET', `/logs?limit=${limit}`);
     const el = document.getElementById('logs-list');
-    if (data.logs && data.logs.length > 0) {
-      document.getElementById('stat-requests').textContent = data.logs.length;
-      el.innerHTML = data.logs.reverse().map(l => `<div class="log-entry"><span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span> <span class="log-level-${l.level}">[${l.level}]</span> <span class="log-msg">${l.message}</span></div>`).join('');
+    const logs = data.logs || [];
+    if (logs.length > 0) {
+      el.innerHTML = [...logs].reverse().map(l => `<div class="log-entry"><span class="log-time">${new Date(l.timestamp).toLocaleTimeString()}</span> <span class="log-level-${l.level || 'info'}">[${l.level || 'info'}]</span> <span class="log-msg">${escapeHtml(l.message || '')}</span></div>`).join('');
     } else el.innerHTML = '<div class="empty">No logs yet</div>';
-  } catch (err) { document.getElementById('logs-list').innerHTML = '<div class="empty">Failed</div>'; }
+  } catch (err) { document.getElementById('logs-list').innerHTML = '<div class="empty">Failed to load logs</div>'; }
 }
 
 // ─── Test Chat ───────────────────────────────────────────────────────────
@@ -827,10 +848,20 @@ async function loadProxyStatus() {
   } catch (err) { document.getElementById('proxy-status').innerHTML = '<span class="status-dot down"></span> Proxy: Down'; }
 }
 
+async function loadProxySettings() {
+  try {
+    const data = await api('GET', '/config');
+    if (data.config) {
+      document.getElementById('proxy-port').value = data.config.proxyPort || 8080;
+      document.getElementById('proxy-host').value = data.config.proxyHost || '127.0.0.1';
+    }
+  } catch (err) {}
+}
+
 async function saveProxySettings() {
   const port = parseInt(document.getElementById('proxy-port').value);
   const host = document.getElementById('proxy-host').value;
-  try { await api('PUT', '/config', { proxyPort: port, proxyHost: host }); toast('Saved', 'Restart to apply', 'success'); } catch (err) {}
+  try { await api('PUT', '/config', { proxyPort: port, proxyHost: host }); toast('Saved', 'Restart the server to apply', 'success'); } catch (err) {}
 }
 
 // ─── Refresh ─────────────────────────────────────────────────────────────

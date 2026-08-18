@@ -32,6 +32,7 @@ import { Context } from 'koa'
 import axios from 'axios'
 import { daemonSupervisor } from '../../../supervisor'
 import { storeManager } from '../../../store/store'
+import { AccountManager } from '../../../store/accounts'
 import { notificationManager } from '../../../notifications/NotificationManager'
 import { fetchLiveModels, fetchAllLiveModels } from '../../liveModelFetcher'
 
@@ -187,10 +188,10 @@ router.delete('/qwen/accounts/:email', async (ctx: Context) => {
 
 router.post('/deepseek/login', async (ctx: Context) => {
   try {
-    // Spawn the auth script in the deepseek-api venv
-    const ok = await daemonSupervisor.spawnAuthWindow('deepseek-api', [
-      '.venv/Scripts/python.exe', '-m', 'deepseek.auth',
-    ])
+    // Platform-aware: Windows uses .venv/Scripts/python.exe, Unix uses .venv/bin/python
+    const isWin = process.platform === 'win32'
+    const pythonPath = isWin ? '.venv/Scripts/python.exe' : '.venv/bin/python'
+    const ok = await daemonSupervisor.spawnAuthWindow('deepseek-api', [pythonPath, '-m', 'deepseek.auth'])
     ctx.body = { success: ok, message: ok ? 'Browser login window opened' : 'Failed to spawn login' }
   } catch (err: any) {
     ctx.status = 500
@@ -227,7 +228,9 @@ router.post('/kimi/token', async (ctx: Context) => {
       ctx.body = { success: false, error: 'token is required' }
       return
     }
-    // Store as an account in the store so the adapter can use it
+    // Use AccountManager.create to generate proper id/status/timestamps.
+    // (storeManager.addAccount alone leaves id/status undefined → smart switcher
+    // rejects the account as unhealthy.)
     const existing = storeManager.getAccountsByProviderId('kimi')
     if (existing.length > 0) {
       // Update the first one
@@ -235,7 +238,7 @@ router.post('/kimi/token', async (ctx: Context) => {
         credentials: { ...existing[0].credentials, token },
       })
     } else {
-      storeManager.addAccount({
+      AccountManager.create({
         providerId: 'kimi',
         name: 'Kimi Web',
         credentials: { token },
@@ -493,14 +496,31 @@ router.put('/config', async (ctx: Context) => {
       proxyPort?: number
       proxyHost?: string
     }
-    const config = storeManager.getConfig()
-    if (proxyPort !== undefined) config.proxyPort = proxyPort
-    if (proxyHost !== undefined) config.proxyHost = proxyHost
-    storeManager.updateConfig(config)
+    // Pass only the changed fields (not the whole config) to avoid clobbering
+    // concurrent changes from other sources (e.g. API key usage counters).
+    const updates: Record<string, any> = {}
+    if (proxyPort !== undefined) updates.proxyPort = proxyPort
+    if (proxyHost !== undefined) updates.proxyHost = proxyHost
+    storeManager.updateConfig(updates)
     ctx.body = { success: true, message: 'Settings saved. Restart the proxy to apply.' }
   } catch (err: any) {
     ctx.status = 500
     ctx.body = { success: false, error: err?.message }
+  }
+})
+
+// ─── Logs (bypass management auth — dashboard needs open access) ────────────
+
+router.get('/logs', async (ctx: Context) => {
+  try {
+    const limit = parseInt(ctx.query.limit as string) || 50
+    const level = ctx.query.level as string | undefined
+    // Get system logs from the app log manager (not request logs — those are
+    // a separate stream with different fields).
+    const logs = storeManager.getLogs({ limit, level: level as any })
+    ctx.body = { success: true, logs: logs || [] }
+  } catch (err: any) {
+    ctx.body = { success: true, logs: [], error: err?.message }
   }
 })
 

@@ -116,7 +116,7 @@ export const DEFAULT_DAEMON_SPECS: DaemonSpec[] = [
     port: 5566,
     healthPath: '/v1/models',
     // Use 'start' (node dist/index.js) — dist/ is committed, no build needed.
-    startCommand: ['bun', 'run', 'start'],
+    startCommand: ['bun', 'dist/index.js'],
     cwd: 'vendor/kimi-free-api',
     env: {},
     required: true,
@@ -259,6 +259,33 @@ export class DaemonSupervisor {
 
     const { spec } = entry
 
+    // Port pre-check: if the daemon is already running on its port (e.g.
+    // launched by another process, or run.ts already spawned it), don't
+    // double-spawn — just mark it healthy and return.
+    try {
+      const headers: Record<string, string> = {}
+      if (spec.env.AUTH_TOKEN) headers['Authorization'] = `Bearer ${spec.env.AUTH_TOKEN}`
+      const resp = await axios.get(`http://localhost:${spec.port}${spec.healthPath}`, {
+        timeout: 2000,
+        validateStatus: () => true,
+        headers,
+      })
+      if (resp.status < 500) {
+        entry.lastStatus = {
+          ...entry.lastStatus,
+          running: true,
+          healthy: resp.status < 400,
+          lastCheck: Date.now(),
+          detail: 'already running (port pre-check)',
+        }
+        this.notify()
+        console.log(`[DaemonSupervisor] ${spec.id} already running on :${spec.port} (port pre-check)`)
+        return { ...entry.lastStatus }
+      }
+    } catch {
+      // Port not responding — proceed to spawn
+    }
+
     // Pre-flight checks for known missing artifacts.
     const detail = this.preflight(spec)
     if (detail) {
@@ -312,7 +339,7 @@ export class DaemonSupervisor {
         stdio: ['ignore', logFd, logFd],
         detached: false,
         windowsHide: true,
-        shell: true,
+        shell: process.platform === 'win32',
       })
 
       entry.process = child
@@ -665,9 +692,16 @@ export class DaemonSupervisor {
     const url = `http://localhost:${spec.port}${spec.healthPath}`
     const start = Date.now()
     try {
+      // Send AUTH_TOKEN header if the daemon requires it (e.g. GLM-Free-API
+      // validates Bearer Waguri on all /v1/* endpoints).
+      const headers: Record<string, string> = {}
+      if (spec.env.AUTH_TOKEN) {
+        headers['Authorization'] = `Bearer ${spec.env.AUTH_TOKEN}`
+      }
       const resp = await axios.get(url, {
         timeout: HEALTH_TIMEOUT_MS,
         validateStatus: () => true,
+        headers,
       })
       const latencyMs = Date.now() - start
       const healthy = resp.status >= 200 && resp.status < 400

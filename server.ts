@@ -71,7 +71,9 @@ async function main() {
     })
   } catch (err: any) {
     logErr(`Store initialization failed: ${err.message}`)
-    logErr('Continuing with default config...')
+    logErr('This is fatal — the proxy cannot function without a store.')
+    logErr('Check that the data/ directory is writable and not corrupted.')
+    process.exit(1)
   }
 
   // Start all daemons
