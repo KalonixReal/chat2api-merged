@@ -412,65 +412,64 @@
         </div>
       </div>
 
-      <!-- CAPTCHA Solver -->
+      <!-- Login & CAPTCHA Solver -->
       <div class="page" id="page-captcha">
-        <div class="h1">Login & CAPTCHA Solver</div>
-        <div class="h2">Click a provider below to open a browser window. Log in manually (solve any CAPTCHAs). Your session is captured automatically.</div>
+        <div class="h1">Login & Account Manager</div>
+        <div class="h2">Add accounts for any provider. Three methods: Browser Login, Token Paste, or Email+Password. Mass import supported.</div>
 
-        <div class="grid">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">Q</span> Qwen</div>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.qwen.ai. Log in with email/password. Token is captured from cookies automatically.</p>
-            <button class="btn btn-primary" onclick="browserLogin('qwen')" id="btn-qwen">Open Browser Login</button>
-            <div id="result-qwen" style="margin-top:8px"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">Q</span> Qwen AI (International)</div>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.qwen.ai. Log in, JWT token is captured from localStorage automatically.</p>
-            <button class="btn btn-primary" onclick="browserLogin('qwen-ai')" id="btn-qwen-ai">Open Browser Login</button>
-            <div id="result-qwen-ai" style="margin-top:8px"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">D</span> DeepSeek</div>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.deepseek.com. Log in, token is captured from localStorage automatically.</p>
-            <button class="btn btn-primary" onclick="browserLogin('deepseek')" id="btn-deepseek">Open Browser Login</button>
-            <div id="result-deepseek" style="margin-top:8px"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><span class="card-icon" style="background:var(--orange-bg)">Z</span> Z.ai (GLM)</div>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.z.ai. Log in, JWT token is captured from localStorage. GLM daemon restarts with the new token.</p>
-            <button class="btn btn-primary" onclick="browserLogin('glm')" id="btn-glm">Open Browser Login</button>
-            <div id="result-glm" style="margin-top:8px"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title"><span class="card-icon" style="background:var(--green-bg)">K</span> Kimi</div>
-            </div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens kimi.com. Log in, refresh_token is captured from cookies automatically.</p>
-            <button class="btn btn-primary" onclick="browserLogin('kimi')" id="btn-kimi">Open Browser Login</button>
-            <div id="result-kimi" style="margin-top:8px"></div>
-          </div>
+        <!-- Method selector -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Login Method</div></div>
+          <select id="login-method" onchange="switchLoginMethod()">
+            <option value="browser">Browser Login (Playwright - auto capture)</option>
+            <option value="token">Token / Cookie Paste (manual)</option>
+            <option value="email">Email + Password (Qwen only)</option>
+            <option value="import">Mass Import (JSON)</option>
+          </select>
         </div>
 
-        <div class="card" style="margin-top:14px">
+        <!-- Browser Login -->
+        <div class="card" id="method-browser">
+          <div class="card-header"><div class="card-title">Browser Login</div></div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Click a provider to open a browser window. Log in manually, your token is captured automatically.</p>
+          <div class="grid" id="browser-login-grid"></div>
+        </div>
+
+        <!-- Token Paste -->
+        <div class="card" id="method-token" style="display:none">
+          <div class="card-header"><div class="card-title">Token / Cookie Paste</div></div>
+          <div class="form-group"><label>Provider</label>
+            <select id="token-provider">
+              <option value="qwen">Qwen (Cookie: tongyi_sso_ticket)</option>
+              <option value="qwen-ai">Qwen AI International (JWT)</option>
+              <option value="deepseek">DeepSeek (localStorage userToken)</option>
+              <option value="glm">Z.ai / GLM (JWT)</option>
+              <option value="kimi">Kimi (refresh_token)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Token Value</label><textarea id="token-value" placeholder="Paste token here..."></textarea></div>
+          <div class="form-group"><label>Account Name (optional)</label><input id="token-name" type="text" placeholder="My Account" /></div>
+          <button class="btn btn-primary" onclick="saveTokenManual()" id="token-save-btn">Save Token</button>
+          <div id="token-result" style="margin-top:8px"></div>
+        </div>
+
+        <!-- Email + Password -->
+        <div class="card" id="method-email" style="display:none">
           <div class="card-header"><div class="card-title">Email + Password Login (Qwen only)</div></div>
-          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">For Qwen, you can also use email+password login. The qwengate daemon handles the browser login automatically.</p>
-          <div class="form-group"><label>Email</label><input id="qwen-email" type="email" placeholder="your@email.com" /></div>
-          <div class="form-group"><label>Password</label><input id="qwen-password" type="password" placeholder="password" /></div>
-          <button class="btn btn-primary" onclick="qwenEmailLogin()" id="qwen-email-btn">Login with Email</button>
-          <div id="result-qwen-email" style="margin-top:8px"></div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Uses qwengate's browser login to handle the session automatically.</p>
+          <div class="form-group"><label>Email</label><input id="email-value" type="email" placeholder="your@email.com" /></div>
+          <div class="form-group"><label>Password</label><input id="password-value" type="password" placeholder="password" /></div>
+          <button class="btn btn-primary" onclick="emailLogin()" id="email-btn">Login</button>
+          <div id="email-result" style="margin-top:8px"></div>
+        </div>
+
+        <!-- Mass Import -->
+        <div class="card" id="method-import" style="display:none">
+          <div class="card-header"><div class="card-title">Mass Import Accounts</div></div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Paste a JSON array of accounts. Format: <code>[{"providerId":"qwen","token":"xxx"},{"providerId":"kimi","token":"yyy"}]</code></p>
+          <div class="form-group"><label>JSON Array</label><textarea id="import-json" placeholder='[{"providerId":"qwen","token":"your_token_here"},{"providerId":"kimi","token":"another_token"}]' style="min-height:120px"></textarea></div>
+          <button class="btn btn-primary" onclick="massImport()" id="import-btn">Import</button>
+          <div id="import-result" style="margin-top:8px"></div>
         </div>
       </div>
 
@@ -520,7 +519,7 @@ function showPage(page) {
   if (page === 'models') loadProviderModels();
   if (page === 'sessions') loadSessions();
   if (page === 'logs') loadLogs();
-  if (page === 'captcha') loadProviderStatus();
+  if (page === 'captcha') loadLoginPage();
   if (page === 'settings') loadProxySettings();
 }
 
@@ -931,65 +930,131 @@ async function saveProxySettings() {
   try { await api('PUT', '/config', { proxyPort: port, proxyHost: host }); toast('Saved', 'Restart the server to apply', 'success'); } catch (err) {}
 }
 
-// ─── Browser-based Login (Playwright) for ALL providers ───────────────────
-// Opens a browser window, user logs in, token is captured automatically.
+// ─── Login & Account Manager ──────────────────────────────────────────────
+// Supports: Browser Login, Token Paste, Email+Password, Mass Import
+
+async function loadLoginPage() {
+  try {
+    const data = await api('GET', '/login/providers');
+    const grid = document.getElementById('browser-login-grid');
+    if (data.providers && data.providers.length > 0) {
+      grid.innerHTML = data.providers.map(p => `
+        <div class="card" style="margin:0">
+          <div class="card-header"><div class="card-title">${escapeHtml(p.label)}</div></div>
+          <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Token: ${escapeHtml(p.tokenLocation)}</p>
+          <button class="btn btn-primary btn-sm" onclick="browserLogin('${escapeHtml(p.id)}')" id="btn-${escapeHtml(p.id)}">Open Browser</button>
+          <div id="result-${escapeHtml(p.id)}" style="margin-top:6px"></div>
+        </div>`).join('');
+    }
+  } catch (err) {
+    document.getElementById('browser-login-grid').innerHTML = '<div class="empty">Failed to load providers</div>';
+  }
+}
+
+function switchLoginMethod() {
+  const method = document.getElementById('login-method').value;
+  ['browser', 'token', 'email', 'import'].forEach(m => {
+    const el = document.getElementById('method-' + m);
+    if (el) el.style.display = m === method ? 'block' : 'none';
+  });
+}
 
 async function browserLogin(providerId) {
   const btn = document.getElementById('btn-' + providerId);
   const resultDiv = document.getElementById('result-' + providerId);
   if (!btn || !resultDiv) return;
-
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Opening browser...';
-  resultDiv.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Browser opening. Log in to the provider, solve any CAPTCHAs. This page will update when login is complete.</div>';
-
+  btn.innerHTML = '<span class="spinner"></span> Opening...';
+  resultDiv.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Browser opening. Log in to the provider.</div>';
   try {
-    // This call blocks for up to 5 minutes while the user logs in
-    const data = await api('POST', '/captcha/browser-login', { providerId });
+    const data = await api('POST', '/login/browser', { providerId });
     if (data.success) {
-      resultDiv.innerHTML = '<div class="badge badge-up" style="font-size:12px;padding:6px 10px">SUCCESS: ' + escapeHtml(data.message) + '</div>';
+      resultDiv.innerHTML = '<div class="badge badge-up" style="font-size:11px;padding:4px 8px">SUCCESS</div>';
       toast('Login Success', escapeHtml(data.message), 'success');
-      // Refresh provider status to show the new account
       loadProviderStatus();
     } else {
-      resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">FAILED: ' + escapeHtml(data.message || data.error || 'Unknown error') + '</div>';
+      resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">FAILED: ' + escapeHtml(data.message || '') + '</div>';
       toast('Login Failed', escapeHtml(data.message || ''), 'error');
     }
   } catch (err) {
-    resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">ERROR: ' + escapeHtml(err.message || '') + '</div>';
+    resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">ERROR</div>';
   }
   btn.disabled = false;
-  btn.innerHTML = 'Open Browser Login';
+  btn.innerHTML = 'Open Browser';
 }
 
-// Email/password login for Qwen (uses qwengate API)
-async function qwenEmailLogin() {
-  const email = document.getElementById('qwen-email').value.trim();
-  const password = document.getElementById('qwen-password').value;
-  const btn = document.getElementById('qwen-email-btn');
-  const resultDiv = document.getElementById('result-qwen-email');
-  if (!email || !password) { toast('Error', 'Email and password required', 'error'); return; }
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Logging in...';
-  resultDiv.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Logging in to Qwen...</div>';
-
+async function saveTokenManual() {
+  const providerId = document.getElementById('token-provider').value;
+  const token = document.getElementById('token-value').value.trim();
+  const name = document.getElementById('token-name').value.trim() || undefined;
+  if (!providerId || !token) { toast('Error', 'Provider and token required', 'error'); return; }
+  const btn = document.getElementById('token-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...';
   try {
-    const data = await api('POST', '/captcha/solve', { providerId: 'qwen', email, password });
+    const data = await api('POST', '/login/token', { providerId, token, name });
     if (data.success) {
-      resultDiv.innerHTML = '<div class="badge badge-up" style="font-size:12px;padding:6px 10px">SUCCESS: ' + escapeHtml(data.message) + '</div>';
+      document.getElementById('token-result').innerHTML = '<div class="badge badge-up" style="font-size:11px;padding:4px 8px">SAVED</div>';
       toast('Success', escapeHtml(data.message), 'success');
-      document.getElementById('qwen-email').value = '';
-      document.getElementById('qwen-password').value = '';
+      document.getElementById('token-value').value = '';
+      document.getElementById('token-name').value = '';
       loadProviderStatus();
     } else {
-      resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">FAILED: ' + escapeHtml(data.message || '') + '</div>';
+      document.getElementById('token-result').innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">FAILED: ' + escapeHtml(data.message || '') + '</div>';
     }
   } catch (err) {
-    resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">ERROR: ' + escapeHtml(err.message || '') + '</div>';
+    document.getElementById('token-result').innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">ERROR</div>';
   }
-  btn.disabled = false;
-  btn.innerHTML = 'Login with Email';
+  btn.disabled = false; btn.innerHTML = 'Save Token';
+}
+
+async function emailLogin() {
+  const email = document.getElementById('email-value').value.trim();
+  const password = document.getElementById('password-value').value;
+  if (!email || !password) { toast('Error', 'Email and password required', 'error'); return; }
+  const btn = document.getElementById('email-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Logging in...';
+  try {
+    const data = await api('POST', '/login/email', { providerId: 'qwen', email, password });
+    if (data.success) {
+      document.getElementById('email-result').innerHTML = '<div class="badge badge-up" style="font-size:11px;padding:4px 8px">SUCCESS</div>';
+      toast('Success', escapeHtml(data.message), 'success');
+      document.getElementById('email-value').value = '';
+      document.getElementById('password-value').value = '';
+      loadProviderStatus();
+    } else {
+      document.getElementById('email-result').innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">FAILED: ' + escapeHtml(data.message || '') + '</div>';
+    }
+  } catch (err) {
+    document.getElementById('email-result').innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">ERROR</div>';
+  }
+  btn.disabled = false; btn.innerHTML = 'Login';
+}
+
+async function massImport() {
+  const json = document.getElementById('import-json').value.trim();
+  if (!json) { toast('Error', 'JSON is required', 'error'); return; }
+  let accounts;
+  try { accounts = JSON.parse(json); } catch (e) { toast('Error', 'Invalid JSON: ' + e.message, 'error'); return; }
+  if (!Array.isArray(accounts)) { toast('Error', 'Must be a JSON array', 'error'); return; }
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Importing...';
+  try {
+    const data = await api('POST', '/login/mass-import', { accounts });
+    const result = document.getElementById('import-result');
+    if (data.success) {
+      result.innerHTML = '<div class="badge badge-up" style="font-size:11px;padding:4px 8px">' + escapeHtml(data.message) + '</div>';
+      toast('Import Success', escapeHtml(data.message), 'success');
+    } else {
+      result.innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">' + escapeHtml(data.message || '') + '</div>';
+    }
+    if (data.errors && data.errors.length > 0) {
+      result.innerHTML += '<div style="margin-top:6px;font-size:11px;color:var(--red)">' + data.errors.map(escapeHtml).join('<br>') + '</div>';
+    }
+    loadProviderStatus();
+  } catch (err) {
+    document.getElementById('import-result').innerHTML = '<div class="badge badge-down" style="font-size:11px;padding:4px 8px">ERROR: ' + escapeHtml(err.message || '') + '</div>';
+  }
+  btn.disabled = false; btn.innerHTML = 'Import';
 }
 
 // ─── Refresh ─────────────────────────────────────────────────────────────

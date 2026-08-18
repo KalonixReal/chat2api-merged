@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qwen Gate — Usage</title>
+<link rel="stylesheet" href="/dashboard/static/shared.css">
+<link rel="stylesheet" href="/dashboard/static/overview.css">
+<link rel="stylesheet" href="/dashboard/static/usage.css">
+</head>
+<body>
+<div class="dashboard-layout">
+<!--SIDEBAR-->
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Daily Usage</h1>
+      <div class="page-header-right">
+        <span class="uptime-text">Requests per account × model, rolling 14 days</span>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="kpi-grid" id="kpiGrid">
+      <div class="kpi-card"><span class="kpi-label">Requests Today</span><span class="kpi-value" id="kpiToday">—</span><span class="kpi-sub" id="kpiTodaySub"></span></div>
+      <div class="kpi-card"><span class="kpi-label">Last 7 Days</span><span class="kpi-value" id="kpiWeek">—</span><span class="kpi-sub" id="kpiWeekSub"></span></div>
+      <div class="kpi-card"><span class="kpi-label">Active Accounts</span><span class="kpi-value" id="kpiAccounts">—</span><span class="kpi-sub" id="kpiAccountsSub"></span></div>
+      <div class="kpi-card"><span class="kpi-label">Rate-Limit Walls</span><span class="kpi-value" id="kpiWalls">—</span><span class="kpi-sub" id="kpiWallsSub"></span></div>
+    </div>
+
+    <!-- Per-account table -->
+    <div class="panel">
+      <div class="panel-header open" onclick="togglePanel(this)"><span class="panel-title">Per-Account Breakdown</span><span class="panel-chevron">▼</span></div>
+      <div class="panel-body open">
+        <div class="panel-content">
+          <div class="tbl-wrap">
+            <table id="usageTable">
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th class="num">Today</th>
+                  <th class="num">Yesterday</th>
+                  <th class="num">7 Days</th>
+                  <th>Per-Model</th>
+                </tr>
+              </thead>
+              <tbody id="usageBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="emptyState" style="display:none">No usage recorded yet — send a few requests and this fills up.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Per-model totals -->
+    <div class="panel">
+      <div class="panel-header open" onclick="togglePanel(this)"><span class="panel-title">Model Totals (7 days)</span><span class="panel-chevron">▼</span></div>
+      <div class="panel-body open">
+        <div class="panel-content">
+          <div class="tbl-wrap">
+            <table id="modelTable">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th class="num">Requests</th>
+                  <th class="num">Wall Hits</th>
+                  <th>Last Wait</th>
+                  <th class="num">Est. Daily Budget</th>
+                </tr>
+              </thead>
+              <tbody id="modelBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/dashboard/static/shared.js"></script>
+<script src="/dashboard/static/usage.js"></script>
+</body>
+</html>
