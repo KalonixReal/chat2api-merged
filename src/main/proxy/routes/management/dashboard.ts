@@ -35,6 +35,7 @@ import { storeManager } from '../../../store/store'
 import { AccountManager } from '../../../store/accounts'
 import { notificationManager } from '../../../notifications/NotificationManager'
 import { fetchLiveModels, fetchAllLiveModels } from '../../liveModelFetcher'
+import { browserLoginManager } from '../../browserLoginManager'
 
 const router = new Router({ prefix: '/v0/management/dashboard' })
 
@@ -522,10 +523,9 @@ router.get('/logs', async (ctx: Context) => {
   }
 })
 
-// ─── In-browser CAPTCHA solving for ALL providers ────────────────────────────
-// The dashboard embeds each provider's login page in an iframe. After the user
-// solves the CAPTCHA + logs in, they paste the token/cookie they get from
-// DevTools. These routes provide the login URLs + accept extracted tokens.
+// ─── Browser-based login (Playwright) for ALL providers ─────────────────────
+// Opens a real browser window to the provider's login page. User logs in
+// manually (solving CAPTCHAs). Playwright captures the token automatically.
 
 router.get('/captcha/login-urls', async (ctx: Context) => {
   ctx.body = {
@@ -538,6 +538,25 @@ router.get('/captcha/login-urls', async (ctx: Context) => {
       zai: { url: 'https://chat.z.ai/', label: 'Z.ai', tokenLocation: 'DevTools > Local Storage > token' },
       kimi: { url: 'https://kimi.com/', label: 'Kimi', tokenLocation: 'DevTools > Cookies > refresh_token' },
     },
+  }
+})
+
+// Browser login: opens a Playwright browser window, user logs in, token is captured automatically
+router.post('/captcha/browser-login', async (ctx: Context) => {
+  try {
+    const { providerId } = ctx.request.body as { providerId: string }
+    if (!providerId) {
+      ctx.status = 400
+      ctx.body = { success: false, error: 'providerId is required' }
+      return
+    }
+    // This opens a browser window and waits for the user to log in.
+    // The request will block until the user finishes (up to 5 min).
+    const result = await browserLoginManager.loginWithProvider(providerId)
+    ctx.body = result
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { success: false, error: err?.message }
   }
 })
 

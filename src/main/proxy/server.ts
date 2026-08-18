@@ -323,6 +323,11 @@ export class ProxyServer {
           resolve(true)
         })
 
+        // No timeout — the browser-login endpoint can take up to 5 minutes
+        // while the user logs in to a provider.
+        this.server.setTimeout(0)
+        this.server.keepAliveTimeout = 0
+
         this.server.on('error', (err: NodeJS.ErrnoException) => {
           if (err.code === 'EADDRINUSE') {
             storeManager.addLog('error', `Port ${this.port} is already in use`)

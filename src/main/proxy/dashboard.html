@@ -414,43 +414,63 @@
 
       <!-- CAPTCHA Solver -->
       <div class="page" id="page-captcha">
-        <div class="h1">CAPTCHA Solver</div>
-        <div class="h2">Solve CAPTCHAs for any provider directly in your browser. Opens the login page, you solve the CAPTCHA, then paste the token.</div>
+        <div class="h1">Login & CAPTCHA Solver</div>
+        <div class="h2">Click a provider below to open a browser window. Log in manually (solve any CAPTCHAs). Your session is captured automatically.</div>
 
-        <div class="card">
-          <div class="card-header"><div class="card-title">1. Select Provider</div></div>
-          <select id="captcha-provider-select" onchange="loadCaptchaProvider()">
-            <option value="">-- Select a provider --</option>
-            <option value="qwen">Qwen (China - email/password)</option>
-            <option value="qwen-ai">Qwen AI (International - JWT token)</option>
-            <option value="deepseek">DeepSeek (browser login)</option>
-            <option value="glm">Z.ai / GLM (JWT token)</option>
-            <option value="kimi">Kimi (JWT/refresh token)</option>
-          </select>
+        <div class="grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">Q</span> Qwen</div>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.qwen.ai. Log in with email/password. Token is captured from cookies automatically.</p>
+            <button class="btn btn-primary" onclick="browserLogin('qwen')" id="btn-qwen">Open Browser Login</button>
+            <div id="result-qwen" style="margin-top:8px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">Q</span> Qwen AI (International)</div>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.qwen.ai. Log in, JWT token is captured from localStorage automatically.</p>
+            <button class="btn btn-primary" onclick="browserLogin('qwen-ai')" id="btn-qwen-ai">Open Browser Login</button>
+            <div id="result-qwen-ai" style="margin-top:8px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--blue-bg)">D</span> DeepSeek</div>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.deepseek.com. Log in, token is captured from localStorage automatically.</p>
+            <button class="btn btn-primary" onclick="browserLogin('deepseek')" id="btn-deepseek">Open Browser Login</button>
+            <div id="result-deepseek" style="margin-top:8px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--orange-bg)">Z</span> Z.ai (GLM)</div>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens chat.z.ai. Log in, JWT token is captured from localStorage. GLM daemon restarts with the new token.</p>
+            <button class="btn btn-primary" onclick="browserLogin('glm')" id="btn-glm">Open Browser Login</button>
+            <div id="result-glm" style="margin-top:8px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="card-icon" style="background:var(--green-bg)">K</span> Kimi</div>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Opens kimi.com. Log in, refresh_token is captured from cookies automatically.</p>
+            <button class="btn btn-primary" onclick="browserLogin('kimi')" id="btn-kimi">Open Browser Login</button>
+            <div id="result-kimi" style="margin-top:8px"></div>
+          </div>
         </div>
 
-        <div class="card" id="captcha-qwen-card" style="display:none">
-          <div class="card-header"><div class="card-title">Qwen - Email + Password Login</div></div>
-          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Enter your Qwen email + password. The daemon (qwengate) will log in for you and handle the session.</p>
-          <div class="form-group"><label>Email</label><input id="captcha-qwen-email" type="email" placeholder="your@email.com" /></div>
-          <div class="form-group"><label>Password</label><input id="captcha-qwen-password" type="password" placeholder="password" /></div>
-          <button class="btn btn-primary" onclick="solveCaptchaQwen()" id="qwen-solve-btn">Login + Solve CAPTCHA</button>
-          <p style="font-size:11px;color:var(--text-dim);margin-top:8px">If this fails due to CAPTCHA, open the Qwen login page below, solve it manually, then retry.</p>
-          <button class="btn btn-sm" onclick="window.open('https://chat.qwen.ai/', '_blank')" style="margin-top:6px">Open Qwen Login in New Tab</button>
-        </div>
-
-        <div class="card" id="captcha-token-card" style="display:none">
-          <div class="card-header"><div class="card-title" id="captcha-token-title">Token Login</div></div>
-          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px" id="captcha-token-help"></p>
-          <div class="form-group"><label>Token / Cookie Value</label><textarea id="captcha-token-value" placeholder="Paste token here..."></textarea></div>
-          <button class="btn btn-primary" onclick="solveCaptchaToken()" id="token-solve-btn">Save Token</button>
-          <div id="captcha-open-login" style="margin-top:10px"></div>
-        </div>
-
-        <div class="card" id="captcha-deepseek-card" style="display:none">
-          <div class="card-header"><div class="card-title">DeepSeek - Browser Login</div></div>
-          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Click the button to open a browser window. Sign in to DeepSeek and solve any CAPTCHA. The session is saved automatically.</p>
-          <button class="btn btn-primary" onclick="solveDeepSeekLogin()" id="deepseek-solve-btn">Open Browser Login</button>
+        <div class="card" style="margin-top:14px">
+          <div class="card-header"><div class="card-title">Email + Password Login (Qwen only)</div></div>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">For Qwen, you can also use email+password login. The qwengate daemon handles the browser login automatically.</p>
+          <div class="form-group"><label>Email</label><input id="qwen-email" type="email" placeholder="your@email.com" /></div>
+          <div class="form-group"><label>Password</label><input id="qwen-password" type="password" placeholder="password" /></div>
+          <button class="btn btn-primary" onclick="qwenEmailLogin()" id="qwen-email-btn">Login with Email</button>
+          <div id="result-qwen-email" style="margin-top:8px"></div>
         </div>
       </div>
 
@@ -500,7 +520,7 @@ function showPage(page) {
   if (page === 'models') loadProviderModels();
   if (page === 'sessions') loadSessions();
   if (page === 'logs') loadLogs();
-  if (page === 'captcha') loadCaptchaUrls();
+  if (page === 'captcha') loadProviderStatus();
   if (page === 'settings') loadProxySettings();
 }
 
@@ -911,80 +931,65 @@ async function saveProxySettings() {
   try { await api('PUT', '/config', { proxyPort: port, proxyHost: host }); toast('Saved', 'Restart the server to apply', 'success'); } catch (err) {}
 }
 
-// ─── CAPTCHA Solver ──────────────────────────────────────────────────────
-let captchaUrls = {};
-let currentCaptchaProvider = '';
+// ─── Browser-based Login (Playwright) for ALL providers ───────────────────
+// Opens a browser window, user logs in, token is captured automatically.
 
-async function loadCaptchaUrls() {
+async function browserLogin(providerId) {
+  const btn = document.getElementById('btn-' + providerId);
+  const resultDiv = document.getElementById('result-' + providerId);
+  if (!btn || !resultDiv) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Opening browser...';
+  resultDiv.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Browser opening. Log in to the provider, solve any CAPTCHAs. This page will update when login is complete.</div>';
+
   try {
-    const data = await api('GET', '/captcha/login-urls');
-    captchaUrls = data.urls || {};
-  } catch (err) {}
-}
-
-function loadCaptchaProvider() {
-  currentCaptchaProvider = document.getElementById('captcha-provider-select').value;
-  // Hide all cards first
-  ['captcha-qwen-card', 'captcha-token-card', 'captcha-deepseek-card'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
-  if (!currentCaptchaProvider) return;
-
-  if (currentCaptchaProvider === 'qwen') {
-    document.getElementById('captcha-qwen-card').style.display = 'block';
-  } else if (currentCaptchaProvider === 'deepseek') {
-    document.getElementById('captcha-deepseek-card').style.display = 'block';
-  } else {
-    // Token-based providers: qwen-ai, glm, zai, kimi
-    document.getElementById('captcha-token-card').style.display = 'block';
-    const info = captchaUrls[currentCaptchaProvider] || {};
-    document.getElementById('captcha-token-title').textContent = info.label || currentCaptchaProvider + ' - Token Login';
-    document.getElementById('captcha-token-help').textContent = 'Where to find the token: ' + (info.tokenLocation || 'DevTools > Local Storage');
-    const loginDiv = document.getElementById('captcha-open-login');
-    if (info.url) {
-      loginDiv.innerHTML = `<button class="btn btn-sm" onclick="window.open('${info.url}', '_blank')">Open ${info.label} Login in New Tab</button>`;
+    // This call blocks for up to 5 minutes while the user logs in
+    const data = await api('POST', '/captcha/browser-login', { providerId });
+    if (data.success) {
+      resultDiv.innerHTML = '<div class="badge badge-up" style="font-size:12px;padding:6px 10px">SUCCESS: ' + escapeHtml(data.message) + '</div>';
+      toast('Login Success', escapeHtml(data.message), 'success');
+      // Refresh provider status to show the new account
+      loadProviderStatus();
+    } else {
+      resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">FAILED: ' + escapeHtml(data.message || data.error || 'Unknown error') + '</div>';
+      toast('Login Failed', escapeHtml(data.message || ''), 'error');
     }
+  } catch (err) {
+    resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">ERROR: ' + escapeHtml(err.message || '') + '</div>';
   }
+  btn.disabled = false;
+  btn.innerHTML = 'Open Browser Login';
 }
 
-async function solveCaptchaQwen() {
-  const email = document.getElementById('captcha-qwen-email').value.trim();
-  const password = document.getElementById('captcha-qwen-password').value;
+// Email/password login for Qwen (uses qwengate API)
+async function qwenEmailLogin() {
+  const email = document.getElementById('qwen-email').value.trim();
+  const password = document.getElementById('qwen-password').value;
+  const btn = document.getElementById('qwen-email-btn');
+  const resultDiv = document.getElementById('result-qwen-email');
   if (!email || !password) { toast('Error', 'Email and password required', 'error'); return; }
-  const btn = document.getElementById('qwen-solve-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Logging in...';
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Logging in...';
+  resultDiv.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Logging in to Qwen...</div>';
+
   try {
     const data = await api('POST', '/captcha/solve', { providerId: 'qwen', email, password });
-    if (data.success) { toast('Success', data.message, 'success'); }
-    else { toast('Failed', data.message, 'error'); }
-  } catch (err) {}
-  btn.disabled = false; btn.innerHTML = 'Login + Solve CAPTCHA';
-}
-
-async function solveCaptchaToken() {
-  const token = document.getElementById('captcha-token-value').value.trim();
-  if (!token) { toast('Error', 'Token is required', 'error'); return; }
-  const btn = document.getElementById('token-solve-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...';
-  try {
-    const data = await api('POST', '/captcha/solve', { providerId: currentCaptchaProvider, token });
     if (data.success) {
-      toast('Success', data.message, 'success');
-      document.getElementById('captcha-token-value').value = '';
-    } else { toast('Failed', data.message, 'error'); }
-  } catch (err) {}
-  btn.disabled = false; btn.innerHTML = 'Save Token';
-}
-
-async function solveDeepSeekLogin() {
-  const btn = document.getElementById('deepseek-solve-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Opening...';
-  try {
-    const data = await api('POST', '/captcha/solve', { providerId: 'deepseek' });
-    if (data.success) { toast('Opened', data.message, 'success'); }
-    else { toast('Failed', data.message, 'error'); }
-  } catch (err) {}
-  btn.disabled = false; btn.innerHTML = 'Open Browser Login';
+      resultDiv.innerHTML = '<div class="badge badge-up" style="font-size:12px;padding:6px 10px">SUCCESS: ' + escapeHtml(data.message) + '</div>';
+      toast('Success', escapeHtml(data.message), 'success');
+      document.getElementById('qwen-email').value = '';
+      document.getElementById('qwen-password').value = '';
+      loadProviderStatus();
+    } else {
+      resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">FAILED: ' + escapeHtml(data.message || '') + '</div>';
+    }
+  } catch (err) {
+    resultDiv.innerHTML = '<div class="badge badge-down" style="font-size:12px;padding:6px 10px">ERROR: ' + escapeHtml(err.message || '') + '</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Login with Email';
 }
 
 // ─── Refresh ─────────────────────────────────────────────────────────────
