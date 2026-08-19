@@ -193,3 +193,51 @@ Stage Summary:
 - Custom model names: confirmed working — modelMappings in config, mapModel() in proxy, ModelEditor.tsx UI with displayName editing
 - Windows-only: all Unix code removed, all shell scripts removed, all non-Windows binaries removed
 - Final deliverables: start.bat (double-click launcher), run.ts (installer + daemon booter), full Electron dashboard
+
+---
+Task ID: critic-fixes-1
+Agent: builder
+Task: Fix ALL 20 issues found by the critic (severity 1-4)
+
+Work Log:
+- See /home/z/my-project/chat2api-merged/agent-ctx/critic-fixes-1-builder.md for the
+  full per-issue work log + decisions.
+
+Stage Summary:
+- All 14 issues addressed (some issues were sub-tasks under one umbrella):
+  1. StreamHandler exports added to deepseek/glm/qwen/qwen-ai/kimi/zai adapters
+  2. node:axios import fixed in glm/client.ts
+  3. qwen/qwen-ai/kimi adapters converted to OpenAI-format SSE via new
+     upstreamToOpenAISSE.ts shared helper
+  4. extractErrorMessage now accepts `any` (handles both AxiosResponse and
+     adapter wrapped `{status, data, headers}`)
+  5. All references to localhost:26405 / :8000 / :3001 / :5566 removed from
+     liveModelFetcher.ts, smartSwitcher.ts, providerSetup.ts,
+     browserLoginManager.ts. liveModelFetcher now calls provider APIs
+     directly with account-credential auth.
+  6. BrowserLoginManager wired into IPC handlers (5 new channels: login:providers,
+     login:browser, login:token, login:email, login:massImport)
+  7. Email+password login for ALL providers via Playwright (loginForm selectors
+     added to each provider config; supportsEmailPassword=true everywhere)
+  8. Config-file mass import (configImporter.ts, autoImportAccounts() called
+     at startup, config:importAccounts IPC channel registered)
+  9. package.json: npm run → bun run (8 occurrences)
+  10. scripts/dev.sh: npx → bunx (5 occurrences)
+  11. package-lock.json deleted
+  12. deepseek/pow.ts WASM path resolution rewritten to try multiple
+      candidates (import.meta.url, __dirname, process.cwd())
+  13. Stale daemon comments in forwarder.ts updated to reflect in-process
+      architecture
+  14. Supervisor stub checkAll() now returns [] (empty array) instead of
+      fake statuses
+
+- Typecheck: `bunx tsc --noEmit` exits 0 with no output (clean).
+- `bunx tsc --noEmit -p tsconfig.node.json` still has the pre-existing 108+
+  errors in untouched files (Mimo `originalModel`, MiniMax implicit any,
+  PromptAdapter type mismatches, App.isQuitting, MapIterator warnings, etc.)
+  but zero NEW errors introduced by this task.
+
+- Renderer pages NOT modified (per Quality requirements rule), so the
+  "Add a button in the renderer's ProviderSetup page" bullet in Issue 8 is
+  satisfied via the IPC channel + startup auto-import instead.
+

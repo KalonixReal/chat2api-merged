@@ -12,7 +12,7 @@ import managementRoutes from './routes/management'
 import { proxyStatusManager } from './status'
 import { storeManager } from '../store/store'
 import { sessionManager } from './sessionManager'
-import { serveDashboard } from './dashboard'
+
 
 const SLOW_REQUEST_THRESHOLD_MS = 1500
 
@@ -168,26 +168,12 @@ export class ProxyServer {
       this.router.use(route.allowedMethods())
     }
 
-    // Web dashboard (replaces the Electron UI) — served at /dashboard
-    this.router.get('/dashboard', async (ctx) => {
-      await serveDashboard(ctx)
-    })
-
-    // Redirect root to dashboard for browser users (API clients still get JSON
-    // via Accept header — but since root just returns a small JSON, redirecting
-    // browser navigation to /dashboard is more useful)
     this.router.get('/', async (ctx) => {
-      const accept = ctx.headers.accept || ''
-      if (accept.includes('text/html')) {
-        ctx.redirect('/dashboard')
-        return
-      }
       ctx.body = {
         name: 'Chat2API Proxy',
-        version: '1.1.2',
-        description: 'OpenAI API compatible proxy service — dashboard at /dashboard',
+        version: '7.0.0',
+        description: 'OpenAI API compatible proxy service (in-process adapters)',
         endpoints: [
-          'GET /dashboard (web UI)',
           'POST /v1/chat/completions',
           'GET /v1/models',
           'GET /v1/models/:model',

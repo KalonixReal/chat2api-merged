@@ -1,6 +1,3 @@
-/**
- * DeepSeek stream handler — thin re-export for backward compat with
- * forwarder.ts imports. Actual logic lives in proxyStreamHandler.ts.
- */
-
-export { DeepSeekStreamHandler } from './deepseek'
+export { DeepSeekAdapter } from './deepseek'
+import { ProxyStreamHandler } from './proxyStreamHandler'
+export class DeepSeekStreamHandler extends ProxyStreamHandler {}

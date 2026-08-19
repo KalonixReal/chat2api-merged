@@ -398,8 +398,8 @@ export class RequestForwarder {
 
   /**
    * DeepSeek Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
-   * The original 110-LOC DeepSeek-specific protocol code is replaced by a thin
-   * HTTP forward to daemons/deepseek-api (sums001/Deepseek-API) on :8000.
+   * The DeepSeekAdapter is an in-process HTTP+PoW client that talks directly to
+   * chat.deepseek.com (no external daemon process needed).
    */
   private async forwardDeepSeek(
     request: ChatCompletionRequest,
@@ -423,15 +423,16 @@ export class RequestForwarder {
   /**
    * Unified proxy forwarder — shared by all swapped providers (Qwen, DeepSeek,
    * GLM, Zai, Kimi). Each swapped adapter is a ProxyAdapter subclass that
-   * forwards to its vendored standalone daemon; the standalone returns
-   * OpenAI-format SSE which ProxyStreamHandler passes through unchanged.
+   * talks directly to the provider's public API in-process; the upstream SSE
+   * is converted to OpenAI format by the adapter's PassThrough stream and
+   * ProxyStreamHandler passes it through unchanged.
    *
    * Smart switching integration:
    *   1. Compute session hash from the request (system prompt + first user
    *      message + tool signatures).
    *   2. getOrCreateSession() — returns a SessionMapping with the bound account
    *      + upstream conversation_id (for session affinity / chat reuse).
-   *   3. Forward with conversation_id set so the daemon continues the same chat.
+   *   3. Forward with conversation_id set so the provider continues the same chat.
    *   4. On throttle (429/403/401 or SSE error markers) → failover to a healthy
    *      account, re-forward. If mid-stream (partial output sent), switch to
    *      context.txt mode (push full message history to the new chat).
@@ -460,7 +461,7 @@ export class RequestForwarder {
       // ─── Smart switching: session affinity ───────────────────────────────
       // Compute a session hash and get-or-create a mapping. If a mapping exists
       // and the account is healthy, we reuse the upstream conversation_id so
-      // the daemon continues the same chat (full context, no re-send).
+      // the provider continues the same chat (full context, no re-send).
       let sessionMapping: import('./smartSwitcher').SessionMapping | null = null
       let activeAccount = account
       let activeProvider = provider
@@ -489,7 +490,7 @@ export class RequestForwarder {
         console.warn(`${logTag} SmartSwitcher session lookup failed (non-fatal):`, swErr)
       }
 
-      // ─── Forward to the daemon ──────────────────────────────────────────
+      // ─── Forward to the provider API ──────────────────────────────────────
       const adapter = new AdapterClass(activeProvider, activeAccount)
 
       const { response, sessionId } = await adapter.chatCompletion({
@@ -659,14 +660,15 @@ export class RequestForwarder {
     }
   }
 
-  // extractErrorMessage is defined further down (single shared impl taking
-  // an AxiosResponse). The forwardProxy method calls it with the response
-  // object directly.
+  // extractErrorMessage is defined further down (single shared impl that
+  // accepts the response object directly — either an AxiosResponse or the
+  // adapter's wrapped `{status, data, headers}` shape). The forwardProxy
+  // method calls it with the adapter's response object.
 
   /**
    * GLM Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
-   * The original GLM-specific protocol code is replaced by a thin HTTP forward
-   * to daemons/glm-free-api on :3001.
+   * The GLMAdapter is an in-process HTTP client that talks directly to
+   * chat.z.ai (no external daemon process needed).
    */
   private async forwardGLM(
     request: ChatCompletionRequest,
@@ -689,8 +691,8 @@ export class RequestForwarder {
 
   /**
    * Kimi Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
-   * The original Kimi-specific protocol code is replaced by a thin HTTP forward
-   * to daemons/kimi-free-api on :5566.
+   * The KimiAdapter is an in-process HTTP client that talks directly to
+   * kimi.moonshot.cn (no external daemon process needed).
    */
   private async forwardKimi(
     request: ChatCompletionRequest,
@@ -713,8 +715,8 @@ export class RequestForwarder {
 
   /**
    * Qwen Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
-   * The original Qwen-specific protocol code is replaced by a thin HTTP forward
-   * to daemons/qwen-gate on :26405.
+   * The QwenAdapter is an in-process HTTP client that talks directly to
+   * chat.qwen.ai (no external daemon process needed).
    */
   private async forwardQwen(
     request: ChatCompletionRequest,
@@ -737,8 +739,8 @@ export class RequestForwarder {
 
   /**
    * Qwen AI (International) Dedicated Forward — delegates to the unified
-   * ProxyAdapter forwarder. The original QwenAi-specific protocol code is
-   * replaced by a thin HTTP forward to daemons/qwen-gate on :26405.
+   * ProxyAdapter forwarder. The QwenAiAdapter is an in-process HTTP client
+   * that talks directly to chat.qwen.ai (no external daemon process needed).
    */
   private async forwardQwenAi(
     request: ChatCompletionRequest,
@@ -761,8 +763,8 @@ export class RequestForwarder {
 
   /**
    * Z.ai Dedicated Forward — delegates to the unified ProxyAdapter forwarder.
-   * The original Z.ai-specific protocol code is replaced by a thin HTTP forward
-   * to daemons/glm-free-api on :3001.
+   * The ZaiAdapter is an in-process HTTP client that talks directly to
+   * chat.z.ai (no external daemon process needed).
    */
   private async forwardZai(
     request: ChatCompletionRequest,
@@ -1208,9 +1210,14 @@ export class RequestForwarder {
 
   /**
    * Extract Error Message
+   *
+   * Accepts either a standard AxiosResponse or the adapter's wrapped
+   * `{status, data, headers}` shape (used by the in-process adapters that
+   * wrap the upstream stream in a PassThrough). `any` is intentional — the
+   * shape varies per caller.
    */
-  private extractErrorMessage(response: AxiosResponse): string {
-    if (response.data) {
+  private extractErrorMessage(response: any): string {
+    if (response?.data) {
       if (typeof response.data === 'string') {
         return response.data
       }
@@ -1234,7 +1241,7 @@ export class RequestForwarder {
       }
     }
 
-    return `HTTP ${response.status}`
+    return `HTTP ${response?.status ?? 'unknown'}`
   }
 
   /**

@@ -1,0 +1,19 @@
+[
+  {
+    "providerId": "qwen",
+    "email": "your@email.com",
+    "password": "yourpassword"
+  },
+  {
+    "providerId": "kimi",
+    "token": "your_jwt_or_refresh_token_here"
+  },
+  {
+    "providerId": "glm",
+    "token": "your_zai_jwt_token_here"
+  },
+  {
+    "providerId": "deepseek",
+    "token": "your_deepseek_usertoken_here"
+  }
+]

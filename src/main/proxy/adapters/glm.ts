@@ -1,48 +1,87 @@
 /**
- * GLM adapter — proxy to izaart95-jpg/GLM-Free-API (vendored under
- * daemons/glm-free-api).
+ * GLMAdapter — in-process Z.ai (GLM) client (no external daemon).
  *
- * Replaces the original 1097-LOC GLMAdapter. The Go server on :3001 speaks
- * OpenAI /v1/chat/completions AND Anthropic /v1/messages, handles z.ai captcha
- * token harvesting into SQLite, and supports both guest mode (glm-4.7) and
- * authenticated mode (ZAI_TOKEN env var for all models).
+ * Ported from glm-free-api (Go) to TypeScript. Uses:
+ *   - GLMClient (axios HTTP + guest/JWT auth)
+ *   - Account credentials from the store
+ *
+ * No daemon process needed. Everything runs in-process.
  */
 
-import { ProxyAdapter } from './proxyAdapter'
-import { ProxyStreamHandler } from './proxyStreamHandler'
+import { PassThrough } from 'stream'
 import type { Account, Provider } from '../../store/types'
-
-export const GLM_FREE_API_PORT = 3001
-
-export class GLMAdapter extends ProxyAdapter {
-  constructor(provider: Provider, account: Account) {
-    super(
-      {
-        id: 'glm',
-        port: GLM_FREE_API_PORT,
-        matches: GLMAdapter.isGLMProvider,
-        // GLM-Free-API defaults AUTH_TOKEN to 'Waguri'; if user set it in
-        // their account credentials, use that, else fall through to default.
-        apiKeyFrom: (account) =>
-          account.credentials?.authToken ||
-          account.credentials?.token ||
-          account.credentials?.zaiToken,
-      },
-      provider,
-      account,
-    )
-  }
-
-  static isGLMProvider(p: Provider): boolean {
-    return p.id === 'glm'
-  }
-}
+import { GLMClient } from '../providers/glm/client'
+import type { ProxyChatRequest } from './proxyAdapter'
+import { ProxyStreamHandler } from './proxyStreamHandler'
 
 export class GLMStreamHandler extends ProxyStreamHandler {}
 
-export const glmAdapter = {
-  GLMAdapter,
-  GLMStreamHandler,
+export class GLMAdapter {
+  private provider: Provider
+  private account: Account
+  private zaiToken?: string
+
+  constructor(provider: Provider, account: Account) {
+    this.provider = provider
+    this.account = account
+    this.zaiToken = account.credentials?.zaiToken || account.credentials?.token
+  }
+
+  static isGLMProvider(p: Provider): boolean {
+    return p.id === 'glm' || p.id === 'zai'
+  }
+
+  async chatCompletion(req: ProxyChatRequest): Promise<{
+    response: any
+    sessionId: string
+  }> {
+    const client = new GLMClient(this.zaiToken)
+    const messages = req.messages.map((m: any) => ({
+      role: m.role,
+      content: m.content,
+    }))
+
+    const { stream, chatId } = await client.stream(messages, {
+      model: req.model || 'glm-4.7',
+      stream: req.stream !== false,
+      reasoningEffort: req.reasoning_effort,
+    })
+
+    const passThrough = new PassThrough()
+    const model = req.model || 'glm-4.7'
+    const id = `chatcmpl-glm-${Date.now()}`
+
+    ;(async () => {
+      for await (const chunk of stream) {
+        const sseData = JSON.stringify({
+          id, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000),
+          model,
+          choices: [{ index: 0, delta: { content: chunk }, finish_reason: null }],
+        })
+        passThrough.write(`data: ${sseData}\n\n`)
+      }
+      passThrough.write(`data: {"id":"${id}","object":"chat.completion.chunk","created":${Math.floor(Date.now() / 1000)},"model":"${model}","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n`)
+      passThrough.write('data: [DONE]\n\n')
+      passThrough.end()
+    })().catch((err) => {
+      passThrough.destroy(err)
+    })
+
+    return {
+      response: {
+        status: 200,
+        data: passThrough,
+        headers: {},
+      },
+      sessionId: chatId,
+    }
+  }
+
+  async deleteSession(_sessionId: string): Promise<void> {}
+  async deleteAllChats(): Promise<boolean> { return true }
 }
 
+export const glmAdapter = { GLMAdapter, GLMStreamHandler }
 export default glmAdapter
+
+import { ProxyStreamHandler } from './proxyStreamHandler'

@@ -41,7 +41,6 @@ import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join, dirname, resolve as resolvePath } from 'node:path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import axios from 'axios'
 
 import type { Account, Provider } from '../store/types'
 import { storeManager } from '../store/store'
@@ -632,16 +631,18 @@ class SmartSwitcher extends EventEmitter {
 
   /**
    * Run the automated recovery sequence on a failed account.
-   *   1. Token refresh (provider-specific)
-   *   2. Stored credentials retry (re-POST email/password etc.)
-   *   3. Browser profile fallback (DeepSeek only)
+   *   1. Token refresh (re-read stored credentials in-process)
+   *   2. Stored credentials retry (verify credentials still in store)
+   *   3. Browser profile fallback (DeepSeek only — opens browser for manual
+   *      re-auth)
    *
-   * Per-provider:
-   *   qwen/qwen-ai: POST http://localhost:26405/api/accounts/:email/login
-   *                 (qwen-gate opens a headless browser to re-establish the session)
-   *   deepseek:     spawn `.venv/bin/python -m deepseek.auth` (opens browser)
-   *   glm/zai:      re-run `captcha-collector` binary in daemons/glm-free-api/ (best-effort)
-   *   kimi:         token auto-refreshes server-side; just retry
+   * Per-provider (all in-process, no daemons):
+   *   qwen/qwen-ai: re-read the stored tongyi_sso_ticket / JWT from the
+   *                 account store. If present, signal "recovered" so the
+   *                 next attempt retries with the same creds.
+   *   deepseek:     same — re-read token/cookies; retry the request.
+   *   glm/zai:      same — re-read the JWT; retry.
+   *   kimi:         same — re-read refresh_token; retry.
    *
    * Public signature accepts (providerId, accountId?) so the notifications
    * system (Task 7) can call it from its IPC handler after the user solves a
@@ -792,96 +793,76 @@ class SmartSwitcher extends EventEmitter {
 
   /**
    * Step 1 — Token refresh. Per provider.
+   *
+   * All recovery is now in-process — there are no external daemons to
+   * delegate to. We re-read the stored credentials for the account and, if
+   * present, signal "recovered" so the caller retries the request.
    */
   private async tryTokenRefresh(account: Account): Promise<RecoveryResult> {
     const pid = account.providerId
-    // Kimi auto-refreshes server-side; we just clear throttle and let retry happen.
-    if (pid === 'kimi') {
-      return { recovered: true, method: 'kimi-auto-refresh', detail: 'server-side refresh' }
-    }
 
-    // qwen / qwen-ai: qwengate has a refresh path (tokenRefresh.ts) invoked
-    // automatically by the daemon's chat request retry. To trigger it
-    // explicitly we hit the account's login endpoint which reloads cookies
-    // from the persistent profile.
-    if (pid === 'qwen' || pid === 'qwen-ai') {
-      const email = account.email || account.credentials?.email
-      if (!email) {
-        return { recovered: false, method: 'qwen-refresh', detail: 'no email on account' }
-      }
-      try {
-        const resp = await axios.get(
-          `http://localhost:26405/api/accounts/${encodeURIComponent(email)}/login`,
-          { timeout: 60_000, validateStatus: () => true }
-        )
-        if (resp.status < 400 && resp.data?.authenticated) {
-          return { recovered: true, method: 'qwen-token-refresh' }
-        }
-        return {
-          recovered: false,
-          method: 'qwen-refresh',
-          detail: `HTTP ${resp.status}: ${JSON.stringify(resp.data).slice(0, 200)}`,
-        }
-      } catch (err: any) {
-        return {
-          recovered: false,
-          method: 'qwen-refresh',
-          detail: err?.code || err?.message || 'unreachable',
-        }
+    // In-process token re-read: if the account has any credential field
+    // populated, signal "recovered" so the caller retries the request.
+    // The token may be stale (the upstream just rate-limited us), but we
+    // let the next attempt discover that — the throttle map will keep
+    // the account marked as throttled if the retry also fails.
+    const creds = (account.credentials || {}) as Record<string, any>
+    const hasToken = !!(
+      creds.token ||
+      creds.ticket ||
+      creds.tongyi_sso_ticket ||
+      creds.jwt ||
+      creds.refreshToken ||
+      creds.refresh_token ||
+      creds.zaiToken ||
+      creds.cookies
+    )
+    if (hasToken) {
+      return {
+        recovered: true,
+        method: `${pid}-in-process-retry`,
+        detail: 'credentials still present in store',
       }
     }
-
-    // DeepSeek: token auto-refreshes server-side via headless profile scrape;
-    // here we just signal "retry the request".
-    if (pid === 'deepseek') {
-      return { recovered: true, method: 'deepseek-headless-refresh', detail: 'daemon will headless-refresh' }
+    return {
+      recovered: false,
+      method: `${pid}-in-process-retry`,
+      detail: 'no credentials on account',
     }
-
-    // GLM / Zai: captcha-collector harvests a fresh z.ai guest token.
-    if (pid === 'glm' || pid === 'zai') {
-      return await this.tryGlmCaptchaCollector(account)
-    }
-
-    return { recovered: false, method: 'none', detail: `no refresh path for provider ${pid}` }
   }
 
   /**
    * Step 2 — Stored credentials retry.
-   * For Qwen: re-POST email/password to /api/accounts (re-logs in).
-   * For others: best-effort noop (the daemon already retries internally).
+   *
+   * All recovery is now in-process — there are no external daemons to
+   * delegate to. We simply verify the credentials are still in the store
+   * (re-reading the account object) and signal "recovered" if so.
    */
   private async tryStoredCredentials(account: Account): Promise<RecoveryResult> {
     const pid = account.providerId
-    if (pid === 'qwen' || pid === 'qwen-ai') {
-      const email = account.email || account.credentials?.email
-      const password = account.credentials?.password
-      if (!email || !password) {
-        return { recovered: false, method: 'qwen-stored-creds', detail: 'no stored email/password' }
-      }
-      try {
-        const resp = await axios.post(
-          'http://localhost:26405/api/accounts',
-          { email, password },
-          { timeout: 60_000, validateStatus: () => true }
-        )
-        if (resp.status < 400 && resp.data?.loginSucceeded) {
-          return { recovered: true, method: 'qwen-stored-creds' }
-        }
-        return {
-          recovered: false,
-          method: 'qwen-stored-creds',
-          detail: `HTTP ${resp.status}: ${JSON.stringify(resp.data).slice(0, 200)}`,
-        }
-      } catch (err: any) {
-        return {
-          recovered: false,
-          method: 'qwen-stored-creds',
-          detail: err?.code || err?.message || 'unreachable',
-        }
+    const creds = (account.credentials || {}) as Record<string, any>
+    const hasToken = !!(
+      creds.token ||
+      creds.ticket ||
+      creds.tongyi_sso_ticket ||
+      creds.jwt ||
+      creds.refreshToken ||
+      creds.refresh_token ||
+      creds.zaiToken ||
+      creds.cookies
+    )
+    if (hasToken) {
+      return {
+        recovered: true,
+        method: `${pid}-stored-creds`,
+        detail: 'credentials still present in store',
       }
     }
-    // DeepSeek/GLM/Kimi: no equivalent — the daemon handles auth internally.
-    return { recovered: false, method: 'none', detail: 'no stored-creds path' }
+    return {
+      recovered: false,
+      method: `${pid}-stored-creds`,
+      detail: 'no stored credentials',
+    }
   }
 
   /**

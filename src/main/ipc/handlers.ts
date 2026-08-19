@@ -18,7 +18,10 @@ import { UpdaterManager } from '../updater'
 import { registerSupervisorHandlers } from './supervisor'
 import { registerProviderSetupHandlers } from './providerSetup'
 import { registerNotificationHandlers } from './notifications'
+import { registerBrowserLoginHandlers } from './browserLogin'
+import { registerConfigImporterHandlers } from '../proxy/configImporter'
 import { notificationManager } from '../notifications/NotificationManager'
+import { browserLoginManager } from '../proxy/browserLoginManager'
 import { daemonSupervisor, ensureInstalled } from '../supervisor'
 import { DeepSeekAdapter } from '../proxy/adapters/deepseek'
 import { GLMAdapter } from '../proxy/adapters/glm'
@@ -121,6 +124,16 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
     registerSupervisorHandlers(mainWindow)
     registerProviderSetupHandlers(mainWindow)
     registerNotificationHandlers(mainWindow)
+
+  // Login + account management
+  ipcMain.handle(IpcChannels.LOGIN_PROVIDERS, async () => browserLoginManager.getProviders())
+  ipcMain.handle(IpcChannels.LOGIN_BROWSER, async (_, providerId: string) => browserLoginManager.loginWithBrowser(providerId))
+  ipcMain.handle(IpcChannels.LOGIN_TOKEN, async (_, providerId: string, token: string, name?: string) => browserLoginManager.saveTokenManually(providerId, token))
+  ipcMain.handle(IpcChannels.LOGIN_EMAIL, async (_, providerId: string, email: string, password: string) => browserLoginManager.loginWithEmailPassword(providerId, email, password))
+  ipcMain.handle(IpcChannels.LOGIN_MASS_IMPORT, async (_, accounts: any[]) => browserLoginManager.massImport(accounts))
+  ipcMain.handle(IpcChannels.LOGIN_CONFIG_IMPORT, async (_, filePath?: string) => browserLoginManager.importFromConfigFile(filePath))
+    registerBrowserLoginHandlers(mainWindow)
+    registerConfigImporterHandlers()
     // Subscribe the notification manager to daemon status changes (crash /
     // recovery) — never throws, degrades gracefully if the supervisor is missing.
     notificationManager.subscribeToSupervisor(daemonSupervisor)
@@ -130,6 +143,16 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
     void notificationManager.subscribeToSmartSwitcher()
     await ensureInstalled()
     await daemonSupervisor.startAll()
+
+    // Auto-import accounts from accounts.json (project root) if present.
+    // Idempotent — skips accounts that already exist (matched by
+    // providerId + email or providerId + token).
+    try {
+      const { autoImportAccounts } = await import('../proxy/configImporter')
+      await autoImportAccounts()
+    } catch (impErr) {
+      console.warn('[App] accounts.json auto-import failed (non-fatal):', impErr)
+    }
   } catch (error) {
     console.error('[App] Daemon supervisor start failed:', error)
   }

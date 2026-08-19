@@ -105,6 +105,17 @@ async function setupApp(): Promise<void> {
 
   trayManager = createTrayManager(mainWindow)
 
+  // Auto-import accounts from accounts.json if it exists
+  try {
+    const { browserLoginManager } = await import('./proxy/browserLoginManager')
+    const result = browserLoginManager.importFromConfigFile()
+    if (result.success > 0) {
+      console.log(`[App] Auto-imported ${result.success} accounts from accounts.json`)
+    }
+  } catch (err) {
+    // Non-fatal — accounts.json is optional
+  }
+
   await loadAppContent(mainWindow)
 
   if (process.env.NODE_ENV === 'development') {

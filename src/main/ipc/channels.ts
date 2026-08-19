@@ -148,6 +148,18 @@ export const IpcChannels = {
   NOTIFICATIONS_SUBSCRIBE: 'notifications:subscribe',
   NOTIFICATIONS_SOLVE_CAPTCHA: 'notifications:solveCaptcha',
   NOTIFICATIONS_RECOVERY_COMPLETE: 'notifications:recoveryComplete',
+
+  // Browser Login Manager — Playwright-based login for all providers.
+  // Supports browser login, manual token paste, and email+password login.
+  LOGIN_PROVIDERS: 'login:providers',
+  LOGIN_BROWSER: 'login:browser',
+  LOGIN_TOKEN: 'login:token',
+  LOGIN_EMAIL: 'login:email',
+  LOGIN_MASS_IMPORT: 'login:massImport',
+
+  // Config-file account importer — reads accounts.json from the project
+  // root and mass-imports the entries into the account store.
+  CONFIG_IMPORT_ACCOUNTS: 'config:importAccounts',
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
