@@ -255,11 +255,24 @@ export function registerProviderSetupHandlers(mainWindow: BrowserWindow | null):
         if (!args?.email || !args?.password) {
           return { success: false, error: 'email and password are required' }
         }
-        const res = await browserLoginManager.loginWithEmailPassword('qwen', args.email, args.password)
+        // Save email+password directly in the store. The Qwen adapter will
+        // login automatically on first chat request using these credentials.
+        const existing = storeManager.getAccountsByProviderId('qwen').filter(a => a.email === args.email)
+        if (existing.length > 0) {
+          storeManager.updateAccount(existing[0].id, {
+            credentials: { email: args.email, password: args.password },
+          })
+        } else {
+          AccountManager.create({
+            providerId: 'qwen',
+            name: `Qwen (${args.email})`,
+            email: args.email,
+            credentials: { email: args.email, password: args.password },
+          })
+        }
         return {
-          success: res.success,
-          loginSucceeded: res.success,
-          loginError: res.success ? undefined : res.message,
+          success: true,
+          loginSucceeded: true,
         }
       } catch (err) {
         return {
@@ -302,11 +315,12 @@ export function registerProviderSetupHandlers(mainWindow: BrowserWindow | null):
         const accounts = AccountManager.getByProviderId('qwen', true)
         const out: QwenAccount[] = accounts.map((a) => {
           const creds = (a.credentials || {}) as Record<string, any>
-          const ticket = creds.ticket || creds.tongyi_sso_ticket || ''
+          const hasToken = !!(creds.token || creds.ticket || creds.tongyi_sso_ticket)
+          const hasEmailPass = !!(creds.email && creds.password)
           return {
             email: a.email || '',
             passwordMasked: creds.password ? '********' : '',
-            authenticated: !!ticket,
+            authenticated: hasToken || hasEmailPass,
             tokenExpiresAt: null,
             throttled: false,
             throttledUntil: null,

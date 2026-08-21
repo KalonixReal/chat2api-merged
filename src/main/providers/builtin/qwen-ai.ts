@@ -12,7 +12,7 @@ export const qwenAiConfig: BuiltinProviderConfig = {
     Accept: 'application/json',
     source: 'web',
   },
-  enabled: true,
+  enabled: false,
   description: 'Qwen AI international version (chat.qwen.ai)',
   modelsApiEndpoint: 'https://chat.qwen.ai/api/models',
   modelsApiHeaders: {

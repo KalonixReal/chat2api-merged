@@ -83,10 +83,10 @@ export class RequestForwarder {
         this.forwardQwen(request, account, provider, actualModel, startTime),
     },
     {
-      name: 'qwen-ai',
+      name: 'qwen-ai-redirect',
       matches: QwenAiAdapter.isQwenAiProvider,
       forward: (request, account, provider, actualModel, startTime) =>
-        this.forwardQwenAi(request, account, provider, actualModel, startTime),
+        this.forwardQwen(request, account, provider, actualModel, startTime),
     },
     {
       name: 'zai',
@@ -742,7 +742,7 @@ export class RequestForwarder {
    * ProxyAdapter forwarder. The QwenAiAdapter is an in-process HTTP client
    * that talks directly to chat.qwen.ai (no external daemon process needed).
    */
-  private async forwardQwenAi(
+  private async forwardQwen(
     request: ChatCompletionRequest,
     account: Account,
     provider: Provider,
